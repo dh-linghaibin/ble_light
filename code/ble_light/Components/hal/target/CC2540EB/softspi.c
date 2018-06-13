@@ -14,7 +14,7 @@ void spftspi_init(void)
     SCK = 0;//SPI ±÷”œﬂ¿≠µÕ
 	CSN = 1;				
 	CE 	= 0;				
-	IRQ = 1;
+	//IRQ = 1;
 }
 
 uint8 spftspi_rw(uint8 byte)
@@ -26,10 +26,14 @@ uint8 spftspi_rw(uint8 byte)
 			MOSI = 1;
 		else
 			MOSI = 0;																 
-		byte = (byte << 1);                      
-		SCK = 1;                                   
-		byte |= SPI_MISO_READ;                             
-		SCK = 0;                                
+		byte = (byte << 1); 
+		SCK = 1;     
+        if(SPI_MISO_READ) {
+            byte |= 1;      
+        } else {
+            byte |= 0;      
+        }
+        SCK = 0; 
 	}
 	return(byte);                              
 }

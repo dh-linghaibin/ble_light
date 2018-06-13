@@ -36,7 +36,7 @@ void DelayMS(uint16 msec)
 void IIC_Init(void)//IIC初始化
 {
     P1DIR |= 0x01;      //P1.5、P1.6定义为输出
-    P0DIR |= 0x80;
+    P1DIR |= 0x04;
 
     SDA_0;
     SCL_0;
@@ -149,7 +149,7 @@ uint8 iic_read(void) {
 		dat <<= 1;
                 delay_1ms();
                 delay_1ms();
-                if(I2C_SDA_READ == BIT7){ //if (SDA==1)
+                if(I2C_SDA_READ == BIT2){ //if (SDA==1)
 			dat |= 0x01; //input TDOS_SDA
 		}
 		SCL_0;	//read TDOS_SDA end. delay 1.4us

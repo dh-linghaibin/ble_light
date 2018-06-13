@@ -1,0 +1,16 @@
+Version 3.2 HI-TECH Software Intermediate Code
+[p mainexit ]
+"4 main.c
+[v _main `(i  1 ef ]
+{
+[; ;main.c: 4: int main(void) {
+[e :U _main ]
+[f ]
+[; ;main.c: 5: return 0;
+"5
+[e ) -> 0 `i ]
+[e $UE 1  ]
+[; ;main.c: 6: }
+"6
+[e :UE 1 ]
+}
