@@ -1,6 +1,5 @@
 package com.jt28.a6735.ble;
 
-import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -37,7 +36,7 @@ import java.util.UUID;
  */
 public class BleController {
 
-    private static String LOGTAG = "H_Ble_Lib --> ";
+    private static String LOGTAG = "lhb";
 
     //BleCOntroller实例
     private static BleController sBleManager;
@@ -71,9 +70,9 @@ public class BleController {
     private static final String BLUETOOTH_NOTIFY_D = "00002902-0000-1000-8000-00805f9b34fb";
 
     //TODO 这里是硬件提供的各种UUID 一定要根据自己的情况进行修改
-    private static final String BLUETOOTH_S = "0000ffe5-0000-1000-8000-00805f9b34fb";//"0000fff0-0000-1000-8000-00805f9b34fb";
-    private static final String BLUETOOTH_NOTIFY_C = "0000ffe4-0000-1000-8000-00805f9b34fb";//"0000fff7-0000-1000-8000-00805f9b34fb";
-    private static final String BLUETOOTH_WRITE_C = "0000ffe9-0000-1000-8000-00805f9b34fb";// "0000fff6-0000-1000-8000-00805f9b34fb";
+    private static final String BLUETOOTH_S = "0000fff0-0000-1000-8000-00805f9b34fb";//"0000fff0-0000-1000-8000-00805f9b34fb";
+    private static final String BLUETOOTH_NOTIFY_C = "0000fff4-0000-1000-8000-00805f9b34fb";//"0000fff7-0000-1000-8000-00805f9b34fb";
+    private static final String BLUETOOTH_WRITE_C = "0000fff1-0000-1000-8000-00805f9b34fb";// "0000fff6-0000-1000-8000-00805f9b34fb";
 
     //-----------------------------  对外公开的方法 ----------------------------------------------
 
@@ -119,7 +118,6 @@ public class BleController {
      * 扫描设备
      * 当传入的time值为0以下时默认扫描时间为5秒
      */
-    @SuppressLint("MissingPermission")
     public void scanBle(int time, final ScanCallback scanCallback) {
         if (!isEnable()) {
             mAdapter.enable();
@@ -252,7 +250,6 @@ public class BleController {
     /**
      * 当前蓝牙是否打开
      */
-    @SuppressLint("MissingPermission")
     private boolean isEnable() {
         if (null != mAdapter) {
             return mAdapter.isEnabled();
@@ -336,6 +333,7 @@ public class BleController {
                     int characteristicSize = characteristics.size();
                     for (int j = 0; j < characteristicSize; j++) {
                         charMap.put(characteristics.get(j).getUuid().toString(), characteristics.get(j));
+                        Log.d("lhb-v",characteristics.get(j).getUuid().toString());
                         if (characteristics.get(j).getUuid().toString().equals(BLUETOOTH_NOTIFY_C)) {
                             if (enableNotification(true, characteristics.get(j))) {
                                 isConnectResponse = true;
@@ -348,7 +346,7 @@ public class BleController {
                     servicesMap.put(serviceUuid, charMap);
                 }
                 // TODO　打印搜索到的服务
-//                printServices(mBluetoothGatt);
+                printServices(mBluetoothGatt);
             }
         }
 

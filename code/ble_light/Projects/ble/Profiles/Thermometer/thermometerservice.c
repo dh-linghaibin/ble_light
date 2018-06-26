@@ -60,8 +60,7 @@
  * CONSTANTS
  */
 
-
-
+#define SERVAPP_NUM_ATTR_SUPPORTED        17
 
 /*********************************************************************
  * TYPEDEFS
@@ -70,43 +69,41 @@
 /*********************************************************************
  * GLOBAL VARIABLES
  */
-uint8 temp_recording = 0;  
-// Thermometer service
-CONST uint8 thermometerServUUID[ATT_BT_UUID_SIZE] =
+// Simple GATT Profile Service UUID: 0xFFF0
+CONST uint8 simpleProfileServUUID[ATT_BT_UUID_SIZE] =
 { 
-  LO_UINT16(TX_PWR_LEVEL_SERV_UUID), HI_UINT16(TX_PWR_LEVEL_SERV_UUID)
+  LO_UINT16(SIMPLEPROFILE_SERV_UUID), HI_UINT16(SIMPLEPROFILE_SERV_UUID)
 };
 
-// Thermometer temperature characteristic
-CONST uint8 thermometerTempUUID[ATT_BT_UUID_SIZE] =
+// Characteristic 1 UUID: 0xFFF1
+CONST uint8 simpleProfilechar1UUID[ATT_BT_UUID_SIZE] =
 { 
-  LO_UINT16(TEMP_MEAS_UUID), HI_UINT16(TEMP_MEAS_UUID)
+  LO_UINT16(SIMPLEPROFILE_CHAR1_UUID), HI_UINT16(SIMPLEPROFILE_CHAR1_UUID)
 };
 
-// Thermometer Site
-CONST uint8 thermometerTypeUUID[ATT_BT_UUID_SIZE] =
+// Characteristic 2 UUID: 0xFFF2
+CONST uint8 simpleProfilechar2UUID[ATT_BT_UUID_SIZE] =
 { 
-  LO_UINT16(TEMP_TYPE_UUID), HI_UINT16(TEMP_TYPE_UUID)
+  LO_UINT16(SIMPLEPROFILE_CHAR2_UUID), HI_UINT16(SIMPLEPROFILE_CHAR2_UUID)
 };
 
-// Thermometer Immediate Measurement
-CONST uint8 thermometerImeasUUID[ATT_BT_UUID_SIZE] =
+// Characteristic 3 UUID: 0xFFF3
+CONST uint8 simpleProfilechar3UUID[ATT_BT_UUID_SIZE] =
 { 
-  LO_UINT16(IMEDIATE_TEMP_UUID), HI_UINT16(IMEDIATE_TEMP_UUID)
+  LO_UINT16(SIMPLEPROFILE_CHAR3_UUID), HI_UINT16(SIMPLEPROFILE_CHAR3_UUID)
 };
 
-// Thermometer Measurement Interval
-CONST uint8 thermometerIntervalUUID[ATT_BT_UUID_SIZE] =
+// Characteristic 4 UUID: 0xFFF4
+CONST uint8 simpleProfilechar4UUID[ATT_BT_UUID_SIZE] =
 { 
-  LO_UINT16(MEAS_INTERVAL_UUID), HI_UINT16(MEAS_INTERVAL_UUID)
+  LO_UINT16(SIMPLEPROFILE_CHAR4_UUID), HI_UINT16(SIMPLEPROFILE_CHAR4_UUID)
 };
 
-// Thermometer Test Commands
-CONST uint8 thermometerIRangeUUID[ATT_BT_UUID_SIZE] =
+// Characteristic 5 UUID: 0xFFF5
+CONST uint8 simpleProfilechar5UUID[ATT_BT_UUID_SIZE] =
 { 
-  LO_UINT16(GATT_VALID_RANGE_UUID), HI_UINT16(GATT_VALID_RANGE_UUID)
+  LO_UINT16(SIMPLEPROFILE_CHAR5_UUID), HI_UINT16(SIMPLEPROFILE_CHAR5_UUID)
 };
-
 
 /*********************************************************************
  * EXTERNAL VARIABLES
@@ -120,180 +117,238 @@ CONST uint8 thermometerIRangeUUID[ATT_BT_UUID_SIZE] =
  * LOCAL VARIABLES
  */
 
-static thermometerServiceCB_t thermometerServiceCB;
+static simpleProfileCBs_t *simpleProfile_AppCBs = NULL;
 
 /*********************************************************************
  * Profile Attributes - variables
  */
 
-// Thermometer Service attribute
-static CONST gattAttrType_t thermometerService = { ATT_BT_UUID_SIZE, thermometerServUUID };
+// Simple Profile Service attribute
+static CONST gattAttrType_t simpleProfileService = { ATT_BT_UUID_SIZE, simpleProfileServUUID };
 
-// Client Characteristic configuration. Each client has its own instantiation
-// of the Client Characteristic Configuration. Reads of the Client Characteristic
-// Configuration only shows the configuration for that client and writes only
-// affect the configuration of that client.
 
-// Thermometer Temperature Characteristic
-static uint8 thermometerTempProps = GATT_PROP_READ | GATT_PROP_WRITE;//GATT_PROP_INDICATE;
-static uint8 thermometerTemp = 0;
-static gattCharCfg_t thermometerTempConfig[GATT_MAX_NUM_CONN];
+// Simple Profile Characteristic 1 Properties
+static uint8 simpleProfileChar1Props = GATT_PROP_READ | GATT_PROP_WRITE;
 
-// Site
-static uint8 thermometerTypeProps =  GATT_PROP_READ | GATT_PROP_WRITE;//GATT_PROP_READ;
-static uint8 thermometerType  =  GATT_PROP_READ | GATT_PROP_WRITE;//0;
+// Characteristic 1 Value
+static uint8 simpleProfileChar1 = 0;
 
-// Intermediate Measurement
-static uint8  thermometerImeasProps = GATT_PROP_NOTIFY;
-static uint8  thermometerImeas=0;
-static gattCharCfg_t thermometerIMeasConfig[GATT_MAX_NUM_CONN];
+// Simple Profile Characteristic 1 User Description
+static uint8 simpleProfileChar1UserDesp[17] = "Characteristic 1\0";
 
-// Measurement Interval
-static uint8  thermometerIntervalProps = GATT_PROP_INDICATE|GATT_PROP_READ|GATT_PROP_WRITE;
-static uint8  thermometerInterval=30;  //default
-static gattCharCfg_t thermometerIntervalConfig[GATT_MAX_NUM_CONN];
 
-// Measurement Interval Range
-static thermometerIRange_t  thermometerIRange = {1,255};
+// Simple Profile Characteristic 2 Properties
+static uint8 simpleProfileChar2Props = GATT_PROP_READ;
+
+// Characteristic 2 Value
+static uint8 simpleProfileChar2 = 0;
+
+// Simple Profile Characteristic 2 User Description
+static uint8 simpleProfileChar2UserDesp[17] = "Characteristic 2\0";
+
+
+// Simple Profile Characteristic 3 Properties
+static uint8 simpleProfileChar3Props = GATT_PROP_WRITE;
+
+// Characteristic 3 Value
+static uint8 simpleProfileChar3 = 0;
+
+// Simple Profile Characteristic 3 User Description
+static uint8 simpleProfileChar3UserDesp[17] = "Characteristic 3\0";
+
+
+// Simple Profile Characteristic 4 Properties
+static uint8 simpleProfileChar4Props = GATT_PROP_NOTIFY;
+
+// Characteristic 4 Value
+static uint8 simpleProfileChar4 = 0;
+
+// Simple Profile Characteristic 4 Configuration Each client has its own
+// instantiation of the Client Characteristic Configuration. Reads of the
+// Client Characteristic Configuration only shows the configuration for
+// that client and writes only affect the configuration of that client.
+static gattCharCfg_t simpleProfileChar4Config[GATT_MAX_NUM_CONN];
+                                        
+// Simple Profile Characteristic 4 User Description
+static uint8 simpleProfileChar4UserDesp[17] = "Characteristic 4\0";
+
+
+// Simple Profile Characteristic 5 Properties
+static uint8 simpleProfileChar5Props = GATT_PROP_READ;
+
+// Characteristic 5 Value
+static uint8 simpleProfileChar5[SIMPLEPROFILE_CHAR5_LEN] = { 0, 0, 0, 0, 0 };
+
+// Simple Profile Characteristic 5 User Description
+static uint8 simpleProfileChar5UserDesp[17] = "Characteristic 5\0";
+
 
 /*********************************************************************
  * Profile Attributes - Table
  */
 
-static gattAttribute_t thermometerAttrTbl[] = 
+static gattAttribute_t simpleProfileAttrTbl[SERVAPP_NUM_ATTR_SUPPORTED] = 
 {
-  // Thermometer Service
+  // Simple Profile Service
   { 
     { ATT_BT_UUID_SIZE, primaryServiceUUID }, /* type */
-    GATT_PERMIT_READ,     /* permissions */
+    GATT_PERMIT_READ,                         /* permissions */
     0,                                        /* handle */
-    (uint8 *)&thermometerService              /* pValue */
+    (uint8 *)&simpleProfileService            /* pValue */
   },
 
-    // TEMPERATURE MEASUREMENT
-    
-    // 1. Characteristic Declaration
-    { 
-      { ATT_BT_UUID_SIZE, characterUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE,
-      0,
-      &thermometerTempProps 
-    },
-
-    // 2. Characteristic Value
-    { 
-      { ATT_BT_UUID_SIZE, thermometerTempUUID },
-      0, 
-      0, 
-      &thermometerTemp 
-    },
-
-    // 3. Characteristic Configuration 
-    { 
-      { ATT_BT_UUID_SIZE, clientCharCfgUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE, 
-      0, 
-      (uint8 *)&thermometerTempConfig
-    },
- 
-    // MEASUREMENT TYPE
-   
-    // 4. Characteristic Declaration
-    { 
-      { ATT_BT_UUID_SIZE, characterUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE, 
-      0,
-      &thermometerTypeProps 
-    },
-
-    // 5. Characteristic Value
-    { 
-      { ATT_BT_UUID_SIZE, thermometerTypeUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE, 
-      0, 
-      &thermometerType 
-    },
-
-    // IMMEDIATE MEASUREMENT
-    
-    // 6. Characteristic Declaration
+    // Characteristic 1 Declaration
     { 
       { ATT_BT_UUID_SIZE, characterUUID },
       GATT_PERMIT_READ, 
       0,
-      &thermometerImeasProps 
+      &simpleProfileChar1Props 
     },
 
-    // 7. Characteristic Value 
-    { 
-      { ATT_BT_UUID_SIZE, thermometerImeasUUID },
-      0, 
-      0, 
-      &thermometerImeas 
-    },
+      // Characteristic Value 1
+      { 
+        { ATT_BT_UUID_SIZE, simpleProfilechar1UUID },
+        GATT_PERMIT_READ | GATT_PERMIT_WRITE, 
+        0, 
+        &simpleProfileChar1 
+      },
 
-    // 8. Characteristic Configuration
-    { 
-      { ATT_BT_UUID_SIZE, clientCharCfgUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE, 
-      0, 
-      (uint8 *)&thermometerIMeasConfig
-    },
+      // Characteristic 1 User Description
+      { 
+        { ATT_BT_UUID_SIZE, charUserDescUUID },
+        GATT_PERMIT_READ, 
+        0, 
+        simpleProfileChar1UserDesp 
+      },      
 
-    // INTERVAL
-    
-    // 9. Characteristic Declaration
+    // Characteristic 2 Declaration
     { 
       { ATT_BT_UUID_SIZE, characterUUID },
       GATT_PERMIT_READ, 
       0,
-      &thermometerIntervalProps 
+      &simpleProfileChar2Props 
     },
 
-    // 10. Characteristic Value
+      // Characteristic Value 2
+      { 
+        { ATT_BT_UUID_SIZE, simpleProfilechar2UUID },
+        GATT_PERMIT_READ, 
+        0, 
+        &simpleProfileChar2 
+      },
+
+      // Characteristic 2 User Description
+      { 
+        { ATT_BT_UUID_SIZE, charUserDescUUID },
+        GATT_PERMIT_READ, 
+        0, 
+        simpleProfileChar2UserDesp 
+      },           
+      
+    // Characteristic 3 Declaration
     { 
-      { ATT_BT_UUID_SIZE, thermometerIntervalUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_AUTHEN_WRITE,
-      0, 
-      &thermometerInterval 
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ, 
+      0,
+      &simpleProfileChar3Props 
     },
-    
-    // 11. Characteristic Configuration
+
+      // Characteristic Value 3
+      { 
+        { ATT_BT_UUID_SIZE, simpleProfilechar3UUID },
+        GATT_PERMIT_WRITE, 
+        0, 
+        &simpleProfileChar3 
+      },
+
+      // Characteristic 3 User Description
+      { 
+        { ATT_BT_UUID_SIZE, charUserDescUUID },
+        GATT_PERMIT_READ, 
+        0, 
+        simpleProfileChar3UserDesp 
+      },
+
+    // Characteristic 4 Declaration
     { 
-      { ATT_BT_UUID_SIZE, clientCharCfgUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE, 
-      0, 
-      (uint8 *)&thermometerIntervalConfig
-    }, 
-    
-    // 12. Interval Range
-    { 
-      { ATT_BT_UUID_SIZE, thermometerIRangeUUID },
-      GATT_PERMIT_READ,
-      0, 
-      (uint8 *)&thermometerIRange 
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ, 
+      0,
+      &simpleProfileChar4Props 
     },
+
+      // Characteristic Value 4
+      { 
+        { ATT_BT_UUID_SIZE, simpleProfilechar4UUID },
+        0, 
+        0, 
+        &simpleProfileChar4 
+      },
+
+      // Characteristic 4 configuration
+      { 
+        { ATT_BT_UUID_SIZE, clientCharCfgUUID },
+        GATT_PERMIT_READ | GATT_PERMIT_WRITE, 
+        0, 
+        (uint8 *)simpleProfileChar4Config 
+      },
+      
+      // Characteristic 4 User Description
+      { 
+        { ATT_BT_UUID_SIZE, charUserDescUUID },
+        GATT_PERMIT_READ, 
+        0, 
+        simpleProfileChar4UserDesp 
+      },
+      
+    // Characteristic 5 Declaration
+    { 
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ, 
+      0,
+      &simpleProfileChar5Props 
+    },
+
+      // Characteristic Value 5
+      { 
+        { ATT_BT_UUID_SIZE, simpleProfilechar5UUID },
+        GATT_PERMIT_AUTHEN_READ, 
+        0, 
+        simpleProfileChar5 
+      },
+
+      // Characteristic 5 User Description
+      { 
+        { ATT_BT_UUID_SIZE, charUserDescUUID },
+        GATT_PERMIT_READ, 
+        0, 
+        simpleProfileChar5UserDesp 
+      },
+
+
 };
+
 
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
-static uint8 thermometer_ReadAttrCB( uint16 connHandle, gattAttribute_t *pAttr, 
+static uint8 simpleProfile_ReadAttrCB( uint16 connHandle, gattAttribute_t *pAttr, 
                             uint8 *pValue, uint8 *pLen, uint16 offset, uint8 maxLen );
-static bStatus_t thermometer_WriteAttrCB( uint16 connHandle, gattAttribute_t *pAttr,
+static bStatus_t simpleProfile_WriteAttrCB( uint16 connHandle, gattAttribute_t *pAttr,
                                  uint8 *pValue, uint8 len, uint16 offset );
 
-static void thermometer_HandleConnStatusCB( uint16 connHandle, uint8 changeType );
+static void simpleProfile_HandleConnStatusCB( uint16 connHandle, uint8 changeType );
+
 
 /*********************************************************************
  * PROFILE CALLBACKS
  */
-// Thermometer Service Callbacks
-CONST gattServiceCBs_t thermometerCBs =
+// Simple Profile Service Callbacks
+CONST gattServiceCBs_t simpleProfileCBs =
 {
-  thermometer_ReadAttrCB,  // Read callback function pointer
-  thermometer_WriteAttrCB, // Write callback function pointer
-  NULL                     // Authorization callback function pointer
+  simpleProfile_ReadAttrCB,  // Read callback function pointer
+  simpleProfile_WriteAttrCB, // Write callback function pointer
+  NULL                       // Authorization callback function pointer
 };
 
 /*********************************************************************
@@ -301,9 +356,9 @@ CONST gattServiceCBs_t thermometerCBs =
  */
 
 /*********************************************************************
- * @fn      Thermometer_AddService
+ * @fn      SimpleProfile_AddService
  *
- * @brief   Initializes the Thermometer   service by registering
+ * @brief   Initializes the Simple Profile service by registering
  *          GATT attributes with the GATT server.
  *
  * @param   services - services to add. This is a bit map and can
@@ -311,47 +366,57 @@ CONST gattServiceCBs_t thermometerCBs =
  *
  * @return  Success or Failure
  */
-bStatus_t Thermometer_AddService( uint32 services )
+bStatus_t SimpleProfile_AddService( uint32 services )
 {
   uint8 status = SUCCESS;
 
   // Initialize Client Characteristic Configuration attributes
-  GATTServApp_InitCharCfg( INVALID_CONNHANDLE, thermometerTempConfig );
-  GATTServApp_InitCharCfg( INVALID_CONNHANDLE, thermometerIMeasConfig );
-  GATTServApp_InitCharCfg( INVALID_CONNHANDLE, thermometerIntervalConfig );
+  GATTServApp_InitCharCfg( INVALID_CONNHANDLE, simpleProfileChar4Config );
 
   // Register with Link DB to receive link status change callback
-  VOID linkDB_Register( thermometer_HandleConnStatusCB );  
+  VOID linkDB_Register( simpleProfile_HandleConnStatusCB );  
   
-  if ( services & THERMOMETER_SERVICE )
+  if ( services & SIMPLEPROFILE_SERVICE )
   {
     // Register GATT attribute list and CBs with GATT Server App
-    status = GATTServApp_RegisterService( thermometerAttrTbl, 
-                                          GATT_NUM_ATTRS( thermometerAttrTbl ),
-                                          &thermometerCBs );
+    status = GATTServApp_RegisterService( simpleProfileAttrTbl, 
+                                          GATT_NUM_ATTRS( simpleProfileAttrTbl ),
+                                          &simpleProfileCBs );
   }
 
   return ( status );
 }
 
-/*********************************************************************
- * @fn      Thermometer_Register
- *
- * @brief   Register a callback function with the Thermometer Service.
- *
- * @param   pfnServiceCB - Callback function.
- *
- * @return  None.
- */
-extern void Thermometer_Register( thermometerServiceCB_t pfnServiceCB )
-{
-  thermometerServiceCB = pfnServiceCB;
-}
 
 /*********************************************************************
- * @fn      Thermometer_SetParameter
+ * @fn      SimpleProfile_RegisterAppCBs
  *
- * @brief   Set a thermomter parameter.
+ * @brief   Registers the application callback function. Only call 
+ *          this function once.
+ *
+ * @param   callbacks - pointer to application callbacks.
+ *
+ * @return  SUCCESS or bleAlreadyInRequestedMode
+ */
+bStatus_t SimpleProfile_RegisterAppCBs( simpleProfileCBs_t *appCallbacks )
+{
+  if ( appCallbacks )
+  {
+    simpleProfile_AppCBs = appCallbacks;
+    
+    return ( SUCCESS );
+  }
+  else
+  {
+    return ( bleAlreadyInRequestedMode );
+  }
+}
+  
+
+/*********************************************************************
+ * @fn      SimpleProfile_SetParameter
+ *
+ * @brief   Set a Simple Profile parameter.
  *
  * @param   param - Profile parameter ID
  * @param   len - length of data to right
@@ -362,38 +427,70 @@ extern void Thermometer_Register( thermometerServiceCB_t pfnServiceCB )
  *
  * @return  bStatus_t
  */
-bStatus_t Thermometer_SetParameter( uint8 param, uint8 len, void *value )
+bStatus_t SimpleProfile_SetParameter( uint8 param, uint8 len, void *value )
 {
   bStatus_t ret = SUCCESS;
   switch ( param )
   {
- 
-    case THERMOMETER_TYPE:
-      thermometerType = *((uint8*)value);
+    case SIMPLEPROFILE_CHAR1:
+      if ( len == sizeof ( uint8 ) ) 
+      {
+        simpleProfileChar1 = *((uint8*)value);
+      }
+      else
+      {
+        ret = bleInvalidRange;
+      }
       break;
-      
-    case THERMOMETER_INTERVAL:
-      thermometerInterval = *((uint8*)value);
-      break;      
- 
-    case THERMOMETER_TEMP_CHAR_CFG:      
-      // Need connection handle
-      //thermometerTempConfig.value = *((uint8*)value);
-      break;
-      
-    case THERMOMETER_IMEAS_CHAR_CFG:      
-      // Need connection handle
-      //thermometerIMeasConfig.value = *((uint8*)value);
-      break; 
 
-    case THERMOMETER_INTERVAL_CHAR_CFG:  
-      // Need connection handle    
-      //thermometerIntervalConfig.value = *((uint8*)value);
-      break;       
-      
-    case THERMOMETER_IRANGE:      
-      thermometerIRange = *((thermometerIRange_t*)value);
-      break;       
+    case SIMPLEPROFILE_CHAR2:
+      if ( len == sizeof ( uint8 ) ) 
+      {
+        simpleProfileChar2 = *((uint8*)value);
+      }
+      else
+      {
+        ret = bleInvalidRange;
+      }
+      break;
+
+    case SIMPLEPROFILE_CHAR3:
+      if ( len == sizeof ( uint8 ) ) 
+      {
+        simpleProfileChar3 = *((uint8*)value);
+      }
+      else
+      {
+        ret = bleInvalidRange;
+      }
+      break;
+
+    case SIMPLEPROFILE_CHAR4:
+      if ( len == sizeof ( uint8 ) ) 
+      {
+        simpleProfileChar4 = *((uint8*)value);
+        
+        // See if Notification has been enabled
+        GATTServApp_ProcessCharCfg( simpleProfileChar4Config, &simpleProfileChar4, FALSE,
+                                    simpleProfileAttrTbl, GATT_NUM_ATTRS( simpleProfileAttrTbl ),
+                                    INVALID_TASK_ID );
+      }
+      else
+      {
+        ret = bleInvalidRange;
+      }
+      break;
+
+    case SIMPLEPROFILE_CHAR5:
+      if ( len == SIMPLEPROFILE_CHAR5_LEN ) 
+      {
+        VOID osal_memcpy( simpleProfileChar5, value, SIMPLEPROFILE_CHAR5_LEN );
+      }
+      else
+      {
+        ret = bleInvalidRange;
+      }
+      break;
       
     default:
       ret = INVALIDPARAMETER;
@@ -404,51 +501,43 @@ bStatus_t Thermometer_SetParameter( uint8 param, uint8 len, void *value )
 }
 
 /*********************************************************************
- * @fn      Thermometer_GetParameter
+ * @fn      SimpleProfile_GetParameter
  *
- * @brief   Get a Thermometer   parameter.
+ * @brief   Get a Simple Profile parameter.
  *
  * @param   param - Profile parameter ID
- * @param   value - pointer to data to get.  This is dependent on
+ * @param   value - pointer to data to put.  This is dependent on
  *          the parameter ID and WILL be cast to the appropriate 
  *          data type (example: data type of uint16 will be cast to 
  *          uint16 pointer).
  *
  * @return  bStatus_t
  */
-bStatus_t Thermometer_GetParameter( uint8 param, void *value )
+bStatus_t SimpleProfile_GetParameter( uint8 param, void *value )
 {
   bStatus_t ret = SUCCESS;
-
   switch ( param )
   {
-    case THERMOMETER_TYPE:
-      *((uint8*)value) = thermometerType;
+    case SIMPLEPROFILE_CHAR1:
+      *((uint8*)value) = simpleProfileChar1;
       break;
 
-    case THERMOMETER_INTERVAL:
-      *((uint8*)value) = thermometerInterval;
+    case SIMPLEPROFILE_CHAR2:
+      *((uint8*)value) = simpleProfileChar2;
+      break;      
+
+    case SIMPLEPROFILE_CHAR3:
+      *((uint8*)value) = simpleProfileChar3;
+      break;  
+
+    case SIMPLEPROFILE_CHAR4:
+      *((uint8*)value) = simpleProfileChar4;
       break;
-    
-    case THERMOMETER_IRANGE:
-      *((thermometerIRange_t*)value) = thermometerIRange;
-      break;
+
+    case SIMPLEPROFILE_CHAR5:
+      VOID osal_memcpy( value, simpleProfileChar5, SIMPLEPROFILE_CHAR5_LEN );
+      break;      
       
-  case THERMOMETER_TEMP_CHAR_CFG:
-      // Need connection handle
-      //*((uint16*)value) = thermometerTempConfig.value;
-      break;
-        
-  case THERMOMETER_IMEAS_CHAR_CFG:
-      // Need connection handle
-      //*((uint16*)value) = thermometerIMeasConfig.value;
-      break;        
-        
-  case THERMOMETER_INTERVAL_CHAR_CFG:
-      // Need connection handle
-      //*((uint16*)value) = thermometerIntervalConfig.value;
-      break;        
-    
     default:
       ret = INVALIDPARAMETER;
       break;
@@ -458,90 +547,7 @@ bStatus_t Thermometer_GetParameter( uint8 param, void *value )
 }
 
 /*********************************************************************
- * @fn          Thermometer_TempIndicate
- *
- * @brief       Send a indication containing a thermometer
- *              measurement.
- *
- * @param       connHandle - connection handle
- * @param       pNoti - pointer to notification structure
- *
- * @return      Success or Failure
- */
-bStatus_t Thermometer_TempIndicate( uint16 connHandle, attHandleValueInd_t *pNoti,uint8 taskId )
-{
-  uint16 value = GATTServApp_ReadCharCfg( connHandle, thermometerTempConfig );
-
-  // If indications enabled
-  if ( value & GATT_CLIENT_CFG_INDICATE )
-  {
-    // Set the handle (uses stored relative handle to lookup actual handle)
-    pNoti->handle = thermometerAttrTbl[pNoti->handle].handle;
-  
-    // Send the Indication
-    return GATT_Indication( connHandle, pNoti, FALSE, taskId );
-  }
-
-  return bleIncorrectMode;
-}
-
-/*********************************************************************
- * @fn          Thermometer_IntervalIndicate
- *
- * @brief       Send a interval change indication
- *              
- * @param       connHandle - connection handle
- * @param       pNoti - pointer to notification structure
- *
- * @return      Success or Failure
- */
-bStatus_t Thermometer_IntervalIndicate( uint16 connHandle, attHandleValueInd_t *pNoti,uint8 taskId )
-{
-  uint16 value = GATTServApp_ReadCharCfg( connHandle, thermometerIntervalConfig );
-
-  // If indications enabled
-  if ( value & GATT_CLIENT_CFG_INDICATE )
-  {
-    // Set the handle (uses stored relative handle to lookup actual handle)
-    pNoti->handle = thermometerAttrTbl[pNoti->handle].handle;
-  
-    // Send the Indication
-    return GATT_Indication( connHandle, pNoti, FALSE, taskId );
-  }
-
-  return bleIncorrectMode;
-}
-
-/*********************************************************************
- * @fn          Thermometer_IMeasNotify
- *
- * @brief       Send a notification containing a thermometer
- *              measurement.
- *
- * @param       connHandle - connection handle
- * @param       pNoti - pointer to notification structure
- *
- * @return      Success or Failure
- */
-bStatus_t Thermometer_IMeasNotify( uint16 connHandle, attHandleValueNoti_t *pNoti)
-{
-  uint16 value = GATTServApp_ReadCharCfg( connHandle, thermometerIMeasConfig );
-
-  // If notifications enabled
-  if ( value & GATT_CLIENT_CFG_NOTIFY )
-  {
-    // Set the handle
-    pNoti->handle = thermometerAttrTbl[THERMOMETER_IMEAS_VALUE_POS].handle;
-  
-    // Send the Notification
-    return GATT_Notification( connHandle, pNoti, FALSE );
-  }
-
-  return bleIncorrectMode;
-}
-
-/*********************************************************************
- * @fn          thermometer_ReadAttrCB
+ * @fn          simpleProfile_ReadAttrCB
  *
  * @brief       Read an attribute.
  *
@@ -554,11 +560,11 @@ bStatus_t Thermometer_IMeasNotify( uint16 connHandle, attHandleValueNoti_t *pNot
  *
  * @return      Success or Failure
  */
-static uint8 thermometer_ReadAttrCB( uint16 connHandle, gattAttribute_t *pAttr, 
+static uint8 simpleProfile_ReadAttrCB( uint16 connHandle, gattAttribute_t *pAttr, 
                             uint8 *pValue, uint8 *pLen, uint16 offset, uint8 maxLen )
 {
   bStatus_t status = SUCCESS;
-  NPI_WriteTransport("ReadCB           \n",24);
+
   // If attribute permissions require authorization to read, return error
   if ( gattPermitAuthorRead( pAttr->permissions ) )
   {
@@ -578,33 +584,45 @@ static uint8 thermometer_ReadAttrCB( uint16 connHandle, gattAttribute_t *pAttr,
     uint16 uuid = BUILD_UINT16( pAttr->type.uuid[0], pAttr->type.uuid[1]);
     switch ( uuid )
     {
-      case TEMP_TYPE_UUID:
-        *pLen = THERMOMETER_TYPE_LEN;
-        VOID osal_memcpy( pValue, &thermometerType, THERMOMETER_TYPE_LEN ) ;
-        break;
-        
-      case MEAS_INTERVAL_UUID:
-        *pLen = THERMOMETER_INTERVAL_LEN;
-        VOID osal_memcpy( pValue, &thermometerInterval, THERMOMETER_INTERVAL_LEN ) ;
+      // No need for "GATT_SERVICE_UUID" or "GATT_CLIENT_CHAR_CFG_UUID" cases;
+      // gattserverapp handles those reads
+
+      // characteristics 1 and 2 have read permissions
+      // characteritisc 3 does not have read permissions; therefore it is not
+      //   included here
+      // characteristic 4 does not have read permissions, but because it
+      //   can be sent as a notification, it is included here
+      case SIMPLEPROFILE_CHAR1_UUID:
+      case SIMPLEPROFILE_CHAR2_UUID:
+      case SIMPLEPROFILE_CHAR4_UUID:
+        *pLen = 1;
+        pValue[0] = *pAttr->pValue;
         break;
 
-      case GATT_VALID_RANGE_UUID:
-        *pLen = THERMOMETER_IRANGE_LEN;
-         VOID osal_memcpy( pValue, &thermometerIRange, THERMOMETER_IRANGE_LEN ) ;
-        break;        
+      case SIMPLEPROFILE_CHAR5_UUID:
+        *pLen = SIMPLEPROFILE_CHAR5_LEN;
+        VOID osal_memcpy( pValue, pAttr->pValue, SIMPLEPROFILE_CHAR5_LEN );
+        break;
         
       default:
+        // Should never get here! (characteristics 3 and 4 do not have read permissions)
         *pLen = 0;
         status = ATT_ERR_ATTR_NOT_FOUND;
         break;
     }
   }
-  
+  else
+  {
+    // 128-bit UUID
+    *pLen = 0;
+    status = ATT_ERR_INVALID_HANDLE;
+  }
+
   return ( status );
 }
 
 /*********************************************************************
- * @fn      thermometer_WriteAttrCB
+ * @fn      simpleProfile_WriteAttrCB
  *
  * @brief   Validate attribute data prior to a write operation
  *
@@ -612,134 +630,99 @@ static uint8 thermometer_ReadAttrCB( uint16 connHandle, gattAttribute_t *pAttr,
  * @param   pAttr - pointer to attribute
  * @param   pValue - pointer to data to be written
  * @param   len - length of data
- * @param   offset - offset of the first octet to be written 
+ * @param   offset - offset of the first octet to be written
  *
  * @return  Success or Failure
  */
-uint16 time2end;        // n min
-static bStatus_t thermometer_WriteAttrCB( uint16 connHandle, gattAttribute_t *pAttr,
-                                          uint8 *pValue, uint8 len, uint16 offset )
+static bStatus_t simpleProfile_WriteAttrCB( uint16 connHandle, gattAttribute_t *pAttr,
+                                 uint8 *pValue, uint8 len, uint16 offset )
 {
   bStatus_t status = SUCCESS;
- uint8 buf[6];
-  uint16 uuid = BUILD_UINT16( pAttr->type.uuid[0], pAttr->type.uuid[1]);
-  //NPI_WriteTransport("WriteCB            \n",24);
-  switch ( uuid )
+  uint8 notifyApp = 0xFF;
+  
+  // If attribute permissions require authorization to write, return error
+  if ( gattPermitAuthorWrite( pAttr->permissions ) )
   {
-    case  GATT_CLIENT_CHAR_CFG_UUID:
-      
-      // Validate/Write Temperature measurement setting
-      if ( pAttr->handle == thermometerAttrTbl[THERMOMETER_TEMP_CHAR_CONFIG_POS].handle )
-      {
-        NPI_WriteTransport("WriteCB in temp_cha\n",24);
-        status = GATTServApp_ProcessCCCWriteReq( connHandle, pAttr, pValue, len,
-                                                 offset, GATT_CLIENT_CFG_INDICATE );
-        if ( status == SUCCESS )
+    // Insufficient authorization
+    return ( ATT_ERR_INSUFFICIENT_AUTHOR );
+  }
+  
+  if ( pAttr->type.len == ATT_BT_UUID_SIZE )
+  {
+    // 16-bit UUID
+    uint16 uuid = BUILD_UINT16( pAttr->type.uuid[0], pAttr->type.uuid[1]);
+    switch ( uuid )
+    {
+      case SIMPLEPROFILE_CHAR1_UUID:
+      case SIMPLEPROFILE_CHAR3_UUID:
+
+        //Validate the value
+        // Make sure it's not a blob oper
+        if ( offset == 0 )
         {
-          uint16 value = BUILD_UINT16( pValue[0], pValue[1] );      
-        
-          (*thermometerServiceCB)( (value == GATT_CFG_NO_OPERATION) ? 
-                                   THERMOMETER_TEMP_IND_DISABLED :
-                                   THERMOMETER_TEMP_IND_ENABLED );
+          if ( len != 1 )
+          {
+            status = ATT_ERR_INVALID_VALUE_SIZE;
+          }
         }
-      }
-      // Validate/Write Intermediate measurement setting
-      else if ( pAttr->handle == thermometerAttrTbl[THERMOMETER_IMEAS_CHAR_CONFIG_POS].handle )
-      {
-        NPI_WriteTransport("WriteCB in imeas_ch\n",24);
-        status = GATTServApp_ProcessCCCWriteReq( connHandle, pAttr, pValue, len,
-                                                 offset, GATT_CLIENT_CFG_NOTIFY );
-        if ( status == SUCCESS )
-        {
-          uint16 value = BUILD_UINT16( pValue[0], pValue[1] );
-          
-          // Notify application 
-          (*thermometerServiceCB)( (value == GATT_CFG_NO_OPERATION) ? 
-                                   THERMOMETER_IMEAS_NOTI_DISABLED :
-                                   THERMOMETER_IMEAS_NOTI_ENABLED);
-        }
-      }
-      // Validate/Write Interval Client Char Config
-      else if ( pAttr->handle == thermometerAttrTbl[THERMOMETER_INTERVAL_CHAR_CONFIG_POS].handle )
-      {        
-        //status = GATTServApp_ProcessCCCWriteReq( connHandle, pAttr, pValue, len,
-         //                                        offset, GATT_CLIENT_CFG_INDICATE );
-        uint16 value = BUILD_UINT16( pValue[0], pValue[1] );
-        if((value >= 1)&&(value <= 600)){
-          status = SUCCESS;
-        }else{
-          status = FAILURE;
-        }
-        
-        if ( status == SUCCESS )
-        {
-          // Notify application 
-          //(*thermometerServiceCB)( (value == GATT_CFG_NO_OPERATION) ? 
-          //                         THERMOMETER_INTERVAL_IND_DISABLED :
-          //                         THERMOMETER_INTERVAL_IND_ENABLED);
-            time2end = value;
-            ChangeValueToString(time2end, &buf[0]);
-            HalLcdWriteString((char *)buf,1);
-          //notify application of write
-            (*thermometerServiceCB)(THERMOMETER_INTERVAL_SET);
-        }         
         else
         {
-           HalLcdWriteString("value illege",1);
-          status = ATT_ERR_INVALID_HANDLE;
+          status = ATT_ERR_ATTR_NOT_LONG;
         }
-      }  
-      else
-      {
-        NPI_WriteTransport("WriteCB in else_   \n",24);
-          status = ATT_ERR_INVALID_VALUE_SIZE;
-      }
-      break;
-  
-    case MEAS_INTERVAL_UUID:
-      // Validate the value
-      // Make sure it's not a blob oper
-      NPI_WriteTransport("WriteCB in meas_in\n",24);
-      if ( offset == 0 )
-      {
-        if ( len != THERMOMETER_INTERVAL_LEN )
-          status = ATT_ERR_INVALID_VALUE_SIZE;
-      }
-      else
-      {
-        status = ATT_ERR_ATTR_NOT_LONG;
-      }
-      
-      //validate range
-      if ((*pValue >= thermometerIRange.high) | ((*pValue <= thermometerIRange.low) & (*pValue != 0)))
-      {
-        status = ATT_ERR_INVALID_VALUE;
-      }
-      
-      //Write the value
-      if ( status == SUCCESS )
-      {
-        uint8 *pCurValue = (uint8 *)pAttr->pValue;
-
-         *pCurValue = *pValue; 
-        VOID osal_memcpy( pCurValue, pValue, THERMOMETER_INTERVAL_LEN ) ;
-
         
-      }
-      break;
-    
-    default:
-      status = ATT_ERR_ATTR_NOT_FOUND;
-      NPI_WriteTransport("WriteCB in OTHER \n",24);
-      break;
+        //Write the value
+        if ( status == SUCCESS )
+        {
+          uint8 *pCurValue = (uint8 *)pAttr->pValue;        
+          *pCurValue = pValue[0];
+
+          if( pAttr->pValue == &simpleProfileChar1 )
+          {
+            notifyApp = SIMPLEPROFILE_CHAR1;        
+          }
+          else
+          {
+            notifyApp = SIMPLEPROFILE_CHAR3;           
+          }
+        }
+             
+        break;
+
+      case GATT_CLIENT_CHAR_CFG_UUID://通知开关管理
+      
+        if(pAttr->handle == simpleProfileAttrTbl[12].handle) {
+            status = GATTServApp_ProcessCCCWriteReq( connHandle, pAttr, pValue, len,
+                                                 offset, GATT_CLIENT_CFG_NOTIFY );
+        } else {
+            status = GATTServApp_ProcessCCCWriteReq( connHandle, pAttr, pValue, len,
+                                                 offset, GATT_CLIENT_CFG_NOTIFY );
+        }
+        
+        break;
+        
+      default:
+        // Should never get here! (characteristics 2 and 4 do not have write permissions)
+        status = ATT_ERR_ATTR_NOT_FOUND;
+        break;
+    }
+  }
+  else
+  {
+    // 128-bit UUID
+    status = ATT_ERR_INVALID_HANDLE;
+  }
+
+  // If a charactersitic value changed then callback function to notify application of change
+  if ( (notifyApp != 0xFF ) && simpleProfile_AppCBs && simpleProfile_AppCBs->pfnSimpleProfileChange )
+  {
+    simpleProfile_AppCBs->pfnSimpleProfileChange( notifyApp );  
   }
   
   return ( status );
 }
 
-
 /*********************************************************************
- * @fn          thermometer_HandleConnStatusCB
+ * @fn          simpleProfile_HandleConnStatusCB
  *
  * @brief       Simple Profile link status change handler function.
  *
@@ -748,7 +731,7 @@ static bStatus_t thermometer_WriteAttrCB( uint16 connHandle, gattAttribute_t *pA
  *
  * @return      none
  */
-static void thermometer_HandleConnStatusCB( uint16 connHandle, uint8 changeType )
+static void simpleProfile_HandleConnStatusCB( uint16 connHandle, uint8 changeType )
 { 
   // Make sure this is not loopback connection
   if ( connHandle != LOOPBACK_CONNHANDLE )
@@ -758,11 +741,28 @@ static void thermometer_HandleConnStatusCB( uint16 connHandle, uint8 changeType 
          ( ( changeType == LINKDB_STATUS_UPDATE_STATEFLAGS ) && 
            ( !linkDB_Up( connHandle ) ) ) )
     { 
-      GATTServApp_InitCharCfg( connHandle, thermometerTempConfig );
-      GATTServApp_InitCharCfg( connHandle, thermometerIMeasConfig );
-      GATTServApp_InitCharCfg( connHandle, thermometerIntervalConfig );
+      GATTServApp_InitCharCfg( connHandle, simpleProfileChar4Config );
     }
   }
+}
+
+
+void GUA_SimpleGATTprofile_Char4_Notify(uint16 nGUA_ConnHandle, uint8 *pGUA_Value, uint8 nGUA_Len)
+{
+    attHandleValueNoti_t stGUA_Noti;
+    uint16 nGUA_Return;
+    //读出 CCC 的值
+    nGUA_Return = GATTServApp_ReadCharCfg(nGUA_ConnHandle, simpleProfileChar4Config);
+    //判断是否打开通知开关，打开了则发送数据
+    if (nGUA_Return & GATT_CLIENT_CFG_NOTIFY)
+    {
+        //填充数据
+        stGUA_Noti.handle = simpleProfileAttrTbl[11].handle;
+        stGUA_Noti.len = 2;
+        osal_memcpy(stGUA_Noti.value, pGUA_Value, 2);
+        //发送数据
+        GATT_Notification(nGUA_ConnHandle, &stGUA_Noti, FALSE);
+    }
 }
 
 

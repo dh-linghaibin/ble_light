@@ -22,7 +22,7 @@
   its documentation for any purpose.
 
   YOU FURTHER ACKNOWLEDGE AND AGREE THAT THE SOFTWARE AND DOCUMENTATION ARE
-  PROVIDED ï¿½AS ISï¿½ WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+  PROVIDED “AS IS?WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
   INCLUDING WITHOUT LIMITATION, ANY WARRANTY OF MERCHANTABILITY, TITLE,
   NON-INFRINGEMENT AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL
   TEXAS INSTRUMENTS OR ITS LICENSORS BE LIABLE OR OBLIGATED UNDER CONTRACT,
@@ -73,10 +73,10 @@ CONST uint8 devInfoServUUID[ATT_BT_UUID_SIZE] =
 };
 
 // System ID
-// CONST uint8 devInfoSystemIdUUID[ATT_BT_UUID_SIZE] =
-// {
-//   LO_UINT16(SYSTEM_ID_UUID), HI_UINT16(SYSTEM_ID_UUID)
-// };
+CONST uint8 devInfoSystemIdUUID[ATT_BT_UUID_SIZE] =
+{
+  LO_UINT16(SYSTEM_ID_UUID), HI_UINT16(SYSTEM_ID_UUID)
+};
 
 // Model Number String
 CONST uint8 devInfoModelNumberUUID[ATT_BT_UUID_SIZE] =
@@ -152,7 +152,7 @@ static uint8 devInfoSystemId[DEVINFO_SYSTEM_ID_LEN] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 // Model Number String characteristic
 static uint8 devInfoModelNumberProps = GATT_PROP_READ;
-uint8 devInfoModelNumber[241];
+static const uint8 devInfoModelNumber[] = "Model Number";
 
 // Serial Number String characteristic
 static uint8 devInfoSerialNumberProps = GATT_PROP_READ;
@@ -209,148 +209,148 @@ static gattAttribute_t devInfoAttrTbl[] =
   },
 
     // System ID Declaration
-    // {
-    //   { ATT_BT_UUID_SIZE, characterUUID },
-    //   GATT_PERMIT_READ,
-    //   0,
-    //   &devInfoSystemIdProps
-    // },
+    {
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ,
+      0,
+      &devInfoSystemIdProps
+    },
 
       // System ID Value
-      // {
-      //   { ATT_BT_UUID_SIZE, devInfoSystemIdUUID },
-      //   GATT_PERMIT_READ,
-      //   0,
-      //   (uint8 *) devInfoSystemId
-      // },
+      {
+        { ATT_BT_UUID_SIZE, devInfoSystemIdUUID },
+        GATT_PERMIT_READ,
+        0,
+        (uint8 *) devInfoSystemId
+      },
 
     // Model Number String Declaration
-    // {
-    //   { ATT_BT_UUID_SIZE, characterUUID },
-    //   GATT_PERMIT_READ,
-    //   0,
-    //   &devInfoModelNumberProps
-    // },
+    {
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ,
+      0,
+      &devInfoModelNumberProps
+    },
 
-    //   // Model Number Value
-    //   {
-    //     { ATT_BT_UUID_SIZE, devInfoModelNumberUUID },
-    //     GATT_PERMIT_READ,
-    //     0,
-    //     (uint8 *) devInfoModelNumber
-    //   },
+      // Model Number Value
+      {
+        { ATT_BT_UUID_SIZE, devInfoModelNumberUUID },
+        GATT_PERMIT_READ,
+        0,
+        (uint8 *) devInfoModelNumber
+      },
 
-    // // Serial Number String Declaration
-    // {
-    //   { ATT_BT_UUID_SIZE, characterUUID },
-    //   GATT_PERMIT_READ,
-    //   0,
-    //   &devInfoSerialNumberProps
-    // },
+    // Serial Number String Declaration
+    {
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ,
+      0,
+      &devInfoSerialNumberProps
+    },
 
-    //   // Serial Number Value
-    //   {
-    //     { ATT_BT_UUID_SIZE, devInfoSerialNumberUUID },
-    //     GATT_PERMIT_READ,
-    //     0,
-    //     (uint8 *) devInfoSerialNumber
-    //   },
+      // Serial Number Value
+      {
+        { ATT_BT_UUID_SIZE, devInfoSerialNumberUUID },
+        GATT_PERMIT_READ,
+        0,
+        (uint8 *) devInfoSerialNumber
+      },
 
-    // // Firmware Revision String Declaration
-    // {
-    //   { ATT_BT_UUID_SIZE, characterUUID },
-    //   GATT_PERMIT_READ,
-    //   0,
-    //   &devInfoFirmwareRevProps
-    // },
+    // Firmware Revision String Declaration
+    {
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ,
+      0,
+      &devInfoFirmwareRevProps
+    },
 
-    //   // Firmware Revision Value
-    //   {
-    //     { ATT_BT_UUID_SIZE, devInfoFirmwareRevUUID },
-    //     GATT_PERMIT_READ,
-    //     0,
-    //     (uint8 *) devInfoFirmwareRev
-    //   },
+      // Firmware Revision Value
+      {
+        { ATT_BT_UUID_SIZE, devInfoFirmwareRevUUID },
+        GATT_PERMIT_READ,
+        0,
+        (uint8 *) devInfoFirmwareRev
+      },
 
-    // // Hardware Revision String Declaration
-    // {
-    //   { ATT_BT_UUID_SIZE, characterUUID },
-    //   GATT_PERMIT_READ,
-    //   0,
-    //   &devInfoHardwareRevProps
-    // },
+    // Hardware Revision String Declaration
+    {
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ,
+      0,
+      &devInfoHardwareRevProps
+    },
 
-    //   // Hardware Revision Value
-    //   {
-    //     { ATT_BT_UUID_SIZE, devInfoHardwareRevUUID },
-    //     GATT_PERMIT_READ,
-    //     0,
-    //     (uint8 *) devInfoHardwareRev
-    //   },
+      // Hardware Revision Value
+      {
+        { ATT_BT_UUID_SIZE, devInfoHardwareRevUUID },
+        GATT_PERMIT_READ,
+        0,
+        (uint8 *) devInfoHardwareRev
+      },
 
-    // // Software Revision String Declaration
-    // {
-    //   { ATT_BT_UUID_SIZE, characterUUID },
-    //   GATT_PERMIT_READ,
-    //   0,
-    //   &devInfoSoftwareRevProps
-    // },
+    // Software Revision String Declaration
+    {
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ,
+      0,
+      &devInfoSoftwareRevProps
+    },
 
-    //   // Software Revision Value
-    //   {
-    //     { ATT_BT_UUID_SIZE, devInfoSoftwareRevUUID },
-    //     GATT_PERMIT_READ,
-    //     0,
-    //     (uint8 *) devInfoSoftwareRev
-    //   },
+      // Software Revision Value
+      {
+        { ATT_BT_UUID_SIZE, devInfoSoftwareRevUUID },
+        GATT_PERMIT_READ,
+        0,
+        (uint8 *) devInfoSoftwareRev
+      },
 
-    // // Manufacturer Name String Declaration
-    // {
-    //   { ATT_BT_UUID_SIZE, characterUUID },
-    //   GATT_PERMIT_READ,
-    //   0,
-    //   &devInfoMfrNameProps
-    // },
+    // Manufacturer Name String Declaration
+    {
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ,
+      0,
+      &devInfoMfrNameProps
+    },
 
-    //   // Manufacturer Name Value
-    //   {
-    //     { ATT_BT_UUID_SIZE, devInfoMfrNameUUID },
-    //     GATT_PERMIT_READ,
-    //     0,
-    //     (uint8 *) devInfoMfrName
-    //   },
+      // Manufacturer Name Value
+      {
+        { ATT_BT_UUID_SIZE, devInfoMfrNameUUID },
+        GATT_PERMIT_READ,
+        0,
+        (uint8 *) devInfoMfrName
+      },
 
-    // // IEEE 11073-20601 Regulatory Certification Data List Declaration
-    // {
-    //   { ATT_BT_UUID_SIZE, characterUUID },
-    //   GATT_PERMIT_READ,
-    //   0,
-    //   &devInfo11073CertProps
-    // },
+    // IEEE 11073-20601 Regulatory Certification Data List Declaration
+    {
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ,
+      0,
+      &devInfo11073CertProps
+    },
 
-    //   // IEEE 11073-20601 Regulatory Certification Data List Value
-    //   {
-    //     { ATT_BT_UUID_SIZE, devInfo11073CertUUID },
-    //     GATT_PERMIT_READ,
-    //     0,
-    //     (uint8 *) devInfo11073Cert
-    //   },
+      // IEEE 11073-20601 Regulatory Certification Data List Value
+      {
+        { ATT_BT_UUID_SIZE, devInfo11073CertUUID },
+        GATT_PERMIT_READ,
+        0,
+        (uint8 *) devInfo11073Cert
+      },
 
-    // // PnP ID Declaration
-    // {
-    //   { ATT_BT_UUID_SIZE, characterUUID },
-    //   GATT_PERMIT_READ,
-    //   0,
-    //   &devInfoPnpIdProps
-    // },
+    // PnP ID Declaration
+    {
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ,
+      0,
+      &devInfoPnpIdProps
+    },
 
-    //   // PnP ID Value
-    //   {
-    //     { ATT_BT_UUID_SIZE, devInfoPnpIdUUID },
-    //     GATT_PERMIT_READ,
-    //     0,
-    //     (uint8 *) devInfoPnpId
-    //   }
+      // PnP ID Value
+      {
+        { ATT_BT_UUID_SIZE, devInfoPnpIdUUID },
+        GATT_PERMIT_READ,
+        0,
+        (uint8 *) devInfoPnpId
+      }
 };
 
 

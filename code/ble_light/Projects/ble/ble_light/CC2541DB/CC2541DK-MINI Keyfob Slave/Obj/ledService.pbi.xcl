@@ -1,4 +1,4 @@
-"D:\03-project\65-ble_light\code\ble_light\Projects\ble\ble_light\Source\timeapp_ind.c"
+"D:\03-project\65-ble_light\code\ble_light\Projects\ble\ble_light\Source\ledService.c"
 -std=c99
 -ferror-limit=0
 -I
@@ -421,6 +421,7 @@ D:\03-project\65-ble_light\code\ble_light\Projects\ble\Profiles\Batt
 -DOSAL_CBTIMER_NUM_TASKS=1
 -DHAL_AES_DMA=TRUE
 -DHAL_DMA=TRUE
+-DHAL_ADC=TRUE
 -DBROADCASTER_CFG=0x01
 -DOBSERVER_CFG=0x02
 -DPERIPHERAL_CFG=0x04

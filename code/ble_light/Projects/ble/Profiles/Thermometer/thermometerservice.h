@@ -45,121 +45,78 @@ extern "C"
 {
 #endif
 
-/*********************************************************************
- * INCLUDES
- */
 
-/*********************************************************************
- * CONSTANTS
- */
-
-// Thermometer Service Parameters
-#define THERMOMETER_TEMP                      0
-#define THERMOMETER_TEMP_CHAR_CFG             1
-#define THERMOMETER_TYPE                      2
-#define THERMOMETER_INTERVAL                  3
-#define THERMOMETER_INTERVAL_CHAR_CFG         4 
-#define THERMOMETER_IMEAS_CHAR_CFG            5  
-#define THERMOMETER_IRANGE                    6   
-
-// Position  in attribute array
-#define THERMOMETER_TEMP_VALUE_POS            2
-#define THERMOMETER_TEMP_CHAR_CONFIG_POS      3
-#define THERMOMETER_IMEAS_VALUE_POS           7
-#define THERMOMETER_IMEAS_CHAR_CONFIG_POS     8
-#define THERMOMETER_INTERVAL_VALUE_POS       10
-#define THERMOMETER_INTERVAL_CHAR_CONFIG_POS 11   
+// Profile Parameters
+#define SIMPLEPROFILE_CHAR1                   0  // RW uint8 - Profile Characteristic 1 value 
+#define SIMPLEPROFILE_CHAR2                   1  // RW uint8 - Profile Characteristic 2 value
+#define SIMPLEPROFILE_CHAR3                   2  // RW uint8 - Profile Characteristic 3 value
+#define SIMPLEPROFILE_CHAR4                   3  // RW uint8 - Profile Characteristic 4 value
+#define SIMPLEPROFILE_CHAR5                   4  // RW uint8 - Profile Characteristic 4 value
   
-  // Length of bytes  
-#define THERMOMETER_INTERVAL_LEN              1
-#define THERMOMETER_TYPE_LEN                  1    
-#define THERMOMETER_IRANGE_LEN                2  
-
-// Maximum length of thermometer
-// measurement characteristic
-#define THERMOMETER_MEAS_MAX  (ATT_MTU_SIZE -5)
-
-// Values for flags
-#define THERMOMETER_FLAGS_CELCIUS          0x00
-#define THERMOMETER_FLAGS_FARENHEIT        0x01 
-#define THERMOMETER_FLAGS_TIMESTAMP        0x02
-#define THERMOMETER_FLAGS_TYPE             0x04  
-
-// Values for sensor location
-#define THERMOMETER_TYPE_ARMPIT            0x01
-#define THERMOMETER_TYPE_BODY              0x02
-#define THERMOMETER_TYPE_EAR               0x03
-#define THERMOMETER_TYPE_FINGER            0x04
-#define THERMOMETER_TYPE_GASTRO            0x05
-#define THERMOMETER_TYPE_MOUTH             0x06
-#define THERMOMETER_TYPE_RECTUM            0x07
-#define THERMOMETER_TYPE_TOE               0x08
-#define THERMOMETER_TYPE_TYMPNUM           0x09
+// Simple Profile Service UUID
+#define SIMPLEPROFILE_SERV_UUID               0xFFF0
+    
+// Key Pressed UUID
+#define SIMPLEPROFILE_CHAR1_UUID            0xFFF1
+#define SIMPLEPROFILE_CHAR2_UUID            0xFFF2
+#define SIMPLEPROFILE_CHAR3_UUID            0xFFF3
+#define SIMPLEPROFILE_CHAR4_UUID            0xFFF4
+#define SIMPLEPROFILE_CHAR5_UUID            0xFFF5
   
-// Thermometer Service bit fields
-#define THERMOMETER_SERVICE          0x00000001
+// Simple Keys Profile Services bit fields
+#define SIMPLEPROFILE_SERVICE               0x00000001
 
-// Callback events
-#define THERMOMETER_TEMP_IND_ENABLED          1
-#define THERMOMETER_TEMP_IND_DISABLED         2
-#define THERMOMETER_IMEAS_NOTI_ENABLED        3
-#define THERMOMETER_IMEAS_NOTI_DISABLED       4
-#define THERMOMETER_INTERVAL_IND_ENABLED      5
-#define THERMOMETER_INTERVAL_IND_DISABLED     6  
-#define THERMOMETER_INTERVAL_SET              7
-#define THERMOMETER_TESTCMD_C                 8
-#define THERMOMETER_TESTCMD_F                 9  
+// Length of Characteristic 5 in bytes
+#define SIMPLEPROFILE_CHAR5_LEN           5  
 
 /*********************************************************************
  * TYPEDEFS
  */
 
-// Thermometer Service callback function
-typedef void (*thermometerServiceCB_t)(uint8 event);
-
-/**
- * Thermometer Interval Range 
- */
-typedef struct
-{
-  uint8 low;         
-  uint8 high; 
-} thermometerIRange_t;
   
 /*********************************************************************
  * MACROS
  */
-extern uint8 temp_recording;
+
 /*********************************************************************
  * Profile Callbacks
  */
 
+// Callback when a characteristic value has changed
+typedef void (*simpleProfileChange_t)( uint8 paramID );
+
+typedef struct
+{
+  simpleProfileChange_t        pfnSimpleProfileChange;  // Called when characteristic value changes
+} simpleProfileCBs_t;
+
+    
 
 /*********************************************************************
  * API FUNCTIONS 
  */
 
+
 /*
- * Thermometer_AddService- Initializes the Thermometer service by registering
+ * SimpleProfile_AddService- Initializes the Simple GATT Profile service by registering
  *          GATT attributes with the GATT server.
  *
  * @param   services - services to add. This is a bit map and can
  *                     contain more than one service.
  */
 
-extern bStatus_t Thermometer_AddService( uint32 services );
+extern bStatus_t SimpleProfile_AddService( uint32 services );
 
 /*
- * Thermometer_Register - Register a callback function with the
- *          Thermometer Service
+ * SimpleProfile_RegisterAppCBs - Registers the application callback function.
+ *                    Only call this function once.
  *
- * @param   pfnServiceCB - Callback function.
+ *    appCallbacks - pointer to application callbacks.
  */
-
-extern void Thermometer_Register( thermometerServiceCB_t pfnServiceCB );
+extern bStatus_t SimpleProfile_RegisterAppCBs( simpleProfileCBs_t *appCallbacks );
 
 /*
- * Thermometer_SetParameter - Set a Thermometer parameter.
+ * SimpleProfile_SetParameter - Set a Simple GATT Profile parameter.
  *
  *    param - Profile parameter ID
  *    len - length of data to right
@@ -168,10 +125,10 @@ extern void Thermometer_Register( thermometerServiceCB_t pfnServiceCB );
  *          data type (example: data type of uint16 will be cast to 
  *          uint16 pointer).
  */
-extern bStatus_t Thermometer_SetParameter( uint8 param, uint8 len, void *value );
+extern bStatus_t SimpleProfile_SetParameter( uint8 param, uint8 len, void *value );
   
 /*
- * Thermometer_GetParameter - Get a Thermometer parameter.
+ * SimpleProfile_GetParameter - Get a Simple GATT Profile parameter.
  *
  *    param - Profile parameter ID
  *    value - pointer to data to write.  This is dependent on
@@ -179,48 +136,13 @@ extern bStatus_t Thermometer_SetParameter( uint8 param, uint8 len, void *value )
  *          data type (example: data type of uint16 will be cast to 
  *          uint16 pointer).
  */
-extern bStatus_t Thermometer_GetParameter( uint8 param, void *value );
+extern bStatus_t SimpleProfile_GetParameter( uint8 param, void *value );
 
-/*********************************************************************
- * @fn          Thermometer_TempIndicate
- *
- * @brief       Send a notification containing a thermometer
- *              measurement.
- *
- * @param       connHandle - connection handle
- * @param       pNoti - pointer to notification structure
- *
- * @return      Success or Failure
- */
-extern bStatus_t Thermometer_TempIndicate( uint16 connHandle, attHandleValueInd_t *pNoti, uint8 taskId );
+void GUA_SimpleGATTprofile_Char4_Notify(uint16 nGUA_ConnHandle, uint8 *pGUA_Value, uint8 nGUA_Len);
 
-/*********************************************************************
- * @fn          Thermometer_IntervalIndicate
- *
- * @brief       Send a interval change indication
- *              
- * @param       connHandle - connection handle
- * @param       pNoti - pointer to notification structure
- *
- * @return      Success or Failure
- */
-extern bStatus_t Thermometer_IntervalIndicate( uint16 connHandle, attHandleValueInd_t *pNoti,uint8 taskId );
-
-/*********************************************************************
- * @fn          Thermometer_IMeasNotify
- *
- * @brief       Send a intermediate temperature notification
- *              
- * @param       connHandle - connection handle
- * @param       pNoti - pointer to notification structure
- *
- * @return      Success or Failure
- */
-extern bStatus_t Thermometer_IMeasNotify( uint16 connHandle, attHandleValueNoti_t *pNoti );
-
-extern void ChangeValueToString(uint32 Data ,uint8 *Buff);//将数值转换为字符串
 /*********************************************************************
 *********************************************************************/
+
 
 #ifdef __cplusplus
 }

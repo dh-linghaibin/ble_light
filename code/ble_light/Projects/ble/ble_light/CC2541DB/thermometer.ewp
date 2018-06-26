@@ -309,6 +309,7 @@
                     <state>OSAL_CBTIMER_NUM_TASKS=1</state>
                     <state>HAL_AES_DMA=TRUE</state>
                     <state>HAL_DMA=TRUE</state>
+                    <state>HAL_ADC=TRUE</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -2282,7 +2283,22 @@
             <name>$PROJ_DIR$\..\Source\app.c</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\..\Source\app.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\Source\ledService.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\Source\ledService.h</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\..\Source\OSAL_Thermometer.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\Profiles\Proximity\proxreporter.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\Profiles\Proximity\proxreporter.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\Source\thermometer.c</name>

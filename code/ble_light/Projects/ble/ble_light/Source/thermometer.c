@@ -64,6 +64,8 @@
 #include "npi.h"
 #include "ioCC254x_bitdef.h"
 #include "ioCC2541.h"
+#include "peripheral.h"
+
 /*********************************************************************
  * MACROS
  */
@@ -71,43 +73,47 @@
 /*********************************************************************
  * CONSTANTS
  */
-#define NOTIFY_INTERVAL 500 //(5*60*1000)                  //in ms
-// Use limited discoverable mode to advertise for 30.72s, and then stop, or
-// use general discoverable mode to advertise indefinitely
-#define DEFAULT_DISCOVERABLE_MODE GAP_ADTYPE_FLAGS_LIMITED
-//#define DEFAULT_DISCOVERABLE_MODE           GAP_ADTYPE_FLAGS_GENERAL
 
 // How often to perform periodic event
-#define PERIODIC_EVT_PERIOD 1000
+#define SBP_PERIODIC_EVT_PERIOD                   5000
 
-// Whether to enable automatic parameter update request when a connection is formed
-#define DEFAULT_ENABLE_UPDATE_REQUEST FALSE
+// What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
+#define DEFAULT_ADVERTISING_INTERVAL          160
 
-// Minimum connection interval (units of 1.25ms) if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_MIN_CONN_INTERVAL 80
+// Limited discoverable mode advertises for 30.72s, and then stops
+// General discoverable mode advertises indefinitely
 
-// Maximum connection interval (units of 1.25ms) if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_MAX_CONN_INTERVAL 1600
+#if defined ( CC2540_MINIDK )
+#define DEFAULT_DISCOVERABLE_MODE             GAP_ADTYPE_FLAGS_LIMITED
+#else
+#define DEFAULT_DISCOVERABLE_MODE             GAP_ADTYPE_FLAGS_GENERAL
+#endif  // defined ( CC2540_MINIDK )
+
+// Minimum connection interval (units of 1.25ms, 80=100ms) if automatic parameter update request is enabled
+#define DEFAULT_DESIRED_MIN_CONN_INTERVAL     80
+
+// Maximum connection interval (units of 1.25ms, 800=1000ms) if automatic parameter update request is enabled
+#define DEFAULT_DESIRED_MAX_CONN_INTERVAL     800
 
 // Slave latency to use if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_SLAVE_LATENCY 1
+#define DEFAULT_DESIRED_SLAVE_LATENCY         0
 
-// Supervision timeout value (units of 10ms) if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_CONN_TIMEOUT 1000
+// Supervision timeout value (units of 10ms, 1000=10s) if automatic parameter update request is enabled
+#define DEFAULT_DESIRED_CONN_TIMEOUT          1000
 
-// Some values used to simulate measurements
-#define FLAGS_IDX_MAX 7 //3 flags c/f -- timestamp -- site
+// Whether to enable automatic parameter update request when a connection is formed
+#define DEFAULT_ENABLE_UPDATE_REQUEST         TRUE
+
+// Connection Pause Peripheral time value (in seconds)
+#define DEFAULT_CONN_PAUSE_PERIPHERAL         6
+
+// Company Identifier: Texas Instruments Inc. (13)
+#define TI_COMPANY_ID                         0x000D
+
+#define INVALID_CONNHANDLE                    0xFFFF
 
 // Length of bd addr as a string
-#define B_ADDR_STR_LEN 15
-
-// Delay to begin discovery from start of connection in ms
-#define DEFAULT_DISCOVERY_DELAY 1000
-
-// Delay to terminate after connection
-#define DEFAULT_TERMINATE_DELAY 60000
-
-#define TH_STORE_MAX 3 //max measurement storage count
+#define B_ADDR_STR_LEN                        15
 
 /*********************************************************************
  * TYPEDEFS
@@ -116,14 +122,6 @@
 /*********************************************************************
  * GLOBAL VARIABLES
  */
-
-// Task ID
-uint8 thermometerTaskId;
-
-// Connection handle
-uint16 gapConnHandle;
-
-uint8 timeConfigDone;
 
 /*********************************************************************
  * EXTERNAL VARIABLES
@@ -136,145 +134,114 @@ uint8 timeConfigDone;
 /*********************************************************************
  * LOCAL VARIABLES
  */
+static uint8 simpleBLEPeripheral_TaskID;   // Task ID for internal task/event processing
 
-// GAP State
 static gaprole_States_t gapProfileState = GAPROLE_INIT;
 
-// Service discovery complete
-static uint8 timeAppDiscoveryCmpl = FALSE;
-
-// GAP Profile - Name attribute for SCAN RSP data
-static uint8 scanResponseData[] =
+// GAP - SCAN RSP data (max size = 31 bytes)
+static uint8 scanRspData[] =
 {
-        0x12, // length of this data
-        GAP_ADTYPE_LOCAL_NAME_COMPLETE,
-        'l',
-        'h',
-        'b',
-        //  'r',
-        //  'm',
-        //  'o',
-        //  'm',
-        //  'e',
-        //  't',
-        //  'e',
-        //  'r',
-        //  'S',
-        //  'e',
-        //  'n',
-        //  's',
-        //  'o',
-        //  'r',
-        // connection interval range
-        0x05, // length of this data
-        GAP_ADTYPE_SLAVE_CONN_INTERVAL_RANGE,
-        LO_UINT16(DEFAULT_DESIRED_MIN_CONN_INTERVAL), // 100ms
-        HI_UINT16(DEFAULT_DESIRED_MIN_CONN_INTERVAL),
-        LO_UINT16(DEFAULT_DESIRED_MAX_CONN_INTERVAL), // 1s
-        HI_UINT16(DEFAULT_DESIRED_MAX_CONN_INTERVAL),
+  // complete name
+  0x10,   // length of this data
+  GAP_ADTYPE_LOCAL_NAME_COMPLETE,
+  0x42,   // 'B'
+  0x4c,   // 'L'
+  0x45,   // 'E'
+  0x4c,   // 'L'
+  0x69,   // 'i'
+  0x67,   // 'g'
+  0x68,   // 'h'
+  0x74,   // 't'
+  0x43,   // 'C'
+  0x6f,   // 'o'
+  0x6e,   // 'n'
+  0x74,   // 't'
+  0x72,   // 'r'
+  0x6f,   // 'o'
+  0x6c,   // 'l'
 
-        // Tx power level
-        GAP_ADTYPE_POWER_LEVEL,
-        0 // 0dBm
+// connection interval range
+  0x05,   // length of this data
+  GAP_ADTYPE_SLAVE_CONN_INTERVAL_RANGE,
+  LO_UINT16( DEFAULT_DESIRED_MIN_CONN_INTERVAL ),   // 100ms
+  HI_UINT16( DEFAULT_DESIRED_MIN_CONN_INTERVAL ),
+  LO_UINT16( DEFAULT_DESIRED_MAX_CONN_INTERVAL ),   // 1s
+  HI_UINT16( DEFAULT_DESIRED_MAX_CONN_INTERVAL ),
+
+  // Tx power level
+  0x02,   // length of this data
+  GAP_ADTYPE_POWER_LEVEL,
+  0       // 0dBm
 };
 
-// Advertisement data
+// GAP - Advertisement data (max size = 31 bytes, though this is
+// best kept short to conserve power while advertisting)
 static uint8 advertData[] =
 {
-        // Flags; this sets the device to use limited discoverable
-        // mode (advertises for 30 seconds at a time) instead of general
-        // discoverable mode (advertises indefinitely)
-        0x02, // length of this data
-        GAP_ADTYPE_FLAGS,
-        DEFAULT_DISCOVERABLE_MODE | GAP_ADTYPE_FLAGS_BREDR_NOT_SUPPORTED,
+  // Flags; this sets the device to use limited discoverable
+  // mode (advertises for 30 seconds at a time) instead of general
+  // discoverable mode (advertises indefinitely)
+  0x02,   // length of this data
+  GAP_ADTYPE_FLAGS,
+  DEFAULT_DISCOVERABLE_MODE | GAP_ADTYPE_FLAGS_BREDR_NOT_SUPPORTED,
 
-        // service UUID
-        0x03, // length of this data
-        GAP_ADTYPE_16BIT_MORE,
-        LO_UINT16(TX_PWR_LEVEL_SERV_UUID),
-        HI_UINT16(TX_PWR_LEVEL_SERV_UUID),
+  // service UUID, to notify central devices what services are included
+  // in this peripheral
+  0x03,   // length of this data
+  GAP_ADTYPE_16BIT_MORE,      // some of the UUID's, but not all
+  LO_UINT16( SIMPLEPROFILE_SERV_UUID ),
+  HI_UINT16( SIMPLEPROFILE_SERV_UUID ),
 
 };
 
-// Device name attribute value
-static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "lhb";
-
-// Bonded peer address
-static uint8 timeAppBondedAddr[B_ADDR_LEN];
-
-// Last connection address
-static uint8 lastConnAddr[B_ADDR_LEN] = {0xf, 0xf, 0xf, 0xf, 0xf, 0xe};
-;
-
-static bool connectedToLastAddress = false;
-
-// GAP connection handle
-static uint16 gapConnHandle;
-
-// Thermometer measurement value stored in this structure
-static attHandleValueInd_t thermometerMeas;
-
-static attHandleValueInd_t thStoreMeas[10];
-static uint8 thStoreStartIndex = 0;
-static uint8 thStoreIndex = 0;
-
-static attHandleValueNoti_t thermometerIMeas;
-static uint32 thermometerCelcius = 0X000173;
-static bool temperatureMeasCharConfig = false;
-//static bool temperatureIntervalConfig = false;
-static bool thMeasTimerRunning = FALSE;
-
-// Bonded state
-static bool timeAppBonded = FALSE;
-
-// TRUE if discovery postponed due to pairing
-static uint8 timeAppDiscPostponed = FALSE;
-
-static void timeAppPasscodeCB(uint8 *deviceAddr, uint16 connectionHandle,
-                              uint8 uiInputs, uint8 uiOutputs);
-static void timeAppPairStateCB(uint16 connHandle, uint8 state, uint8 status);
-
-static void thermometer_Advertise(void);
-
-static void thermometerSendStoredMeas();
+// GAP GATT Attributes
+static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "BLE Light Control";
 
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
-static void thermometer_ProcessOSALMsg(osal_event_hdr_t *pMsg);
-static void peripheralStateNotificationCB(gaprole_States_t newState);
-static void performPeriodicTask(void);
-static void performPeriodicImeasTask(void);
-static void thermometerMeasIndicate(void);
-static void thermometerCB(uint8 event);
-static void thermometerStoreIndications(attHandleValueInd_t *pInd);
+static void simpleBLEPeripheral_ProcessOSALMsg( osal_event_hdr_t *pMsg );
+static void peripheralStateNotificationCB( gaprole_States_t newState );
+//static void performPeriodicTask( void );
+static void simpleProfileChangeCB( uint8 paramID );
+
+#if defined( CC2540_MINIDK )
+static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys );
+#endif
+
+
 
 /*********************************************************************
  * PROFILE CALLBACKS
  */
 
 // GAP Role Callbacks
-static gapRolesCBs_t thermometer_PeripheralCBs =
+static gapRolesCBs_t simpleBLEPeripheral_PeripheralCBs =
 {
-        peripheralStateNotificationCB, // Profile State Change Callbacks
-        NULL                           // When a valid RSSI is read from controller
+  peripheralStateNotificationCB,  // Profile State Change Callbacks
+  NULL                            // When a valid RSSI is read from controller (not used by application)
 };
 
 // GAP Bond Manager Callbacks
-static gapBondCBs_t thermometer_BondMgrCBs =
+static gapBondCBs_t simpleBLEPeripheral_BondMgrCBs =
 {
-        timeAppPasscodeCB,
-        timeAppPairStateCB
+  NULL,                     // Passcode callback (not used by application)
+  NULL                      // Pairing / Bonding state Callback (not used by application)
 };
 
+// Simple GATT Profile Callbacks
+static simpleProfileCBs_t simpleBLEPeripheral_SimpleProfileCBs =
+{
+  simpleProfileChangeCB    // Charactersitic value change callback
+};
 /*********************************************************************
  * PUBLIC FUNCTIONS
  */
 
 /*********************************************************************
- * @fn      Thermometer_Init
+ * @fn      SimpleBLEPeripheral_Init
  *
- * @brief   Initialization function for the Thermometer App Task.
+ * @brief   Initialization function for the Simple BLE Peripheral App Task.
  *          This is called during initialization and should contain
  *          any application specific initialization (ie. hardware
  *          initialization/setup, table initialization, power up
@@ -285,116 +252,144 @@ static gapBondCBs_t thermometer_BondMgrCBs =
  *
  * @return  none
  */
-void Thermometer_Init(uint8 task_id)
+void Thermometer_Init( uint8 task_id )
 {
-    thermometerTaskId = task_id;
+  simpleBLEPeripheral_TaskID = task_id;
 
-    /* Use for testing if chip default is 0xFFFFFF
-    static uint8 bdAddress[6] = {0x1,0x2,0x3,0x4,0x5,0x6};
-    HCI_EXT_SetBDADDRCmd(bdAddress);
-    */
-    NPI_InitTransport(NULL);
-    // while(1)
-    NPI_WriteTransport("Hello World\n", 12);
+  // Setup the GAP
+  VOID GAP_SetParamValue( TGAP_CONN_PAUSE_PERIPHERAL, DEFAULT_CONN_PAUSE_PERIPHERAL );
+  
+  // Setup the GAP Peripheral Role Profile
+  {
+    #if defined( CC2540_MINIDK )
+      // For the CC2540DK-MINI keyfob, device doesn't start advertising until button is pressed
+      uint8 initial_advertising_enable = FALSE;
+    #else
+      // For other hardware platforms, device starts advertising upon initialization
+      uint8 initial_advertising_enable = TRUE;
+    #endif
 
-    // Set [ADCCON1.STSEL] according to ADC configuration.
-    ADCCON1 = (ADCCON1 & ~ADCCON1_STSEL) | ADCCON1_STSEL_ST;
-    // Set [ADCCON2.SREF/SDIV/SCH] according to ADC configuration.
-    ADCCON2 = ADCCON2_SREF_1_15V | ADCCON2_SDIV_512 | ADCCON2_SCH_TEMPR;
-    //TR0 = TR0_ADCTM;
-    //ATEST = 1;
+    // By setting this to zero, the device will go into the waiting state after
+    // being discoverable for 30.72 second, and will not being advertising again
+    // until the enabler is set back to TRUE
+    uint16 gapRole_AdvertOffTime = 0;
 
-    // Setup the GAP Peripheral Role Profile
-    {
-        // Device start advertising anyway
-        uint8 initial_advertising_enable = TRUE;
+    uint8 enable_update_request = DEFAULT_ENABLE_UPDATE_REQUEST;
+    uint16 desired_min_interval = DEFAULT_DESIRED_MIN_CONN_INTERVAL;
+    uint16 desired_max_interval = DEFAULT_DESIRED_MAX_CONN_INTERVAL;
+    uint16 desired_slave_latency = DEFAULT_DESIRED_SLAVE_LATENCY;
+    uint16 desired_conn_timeout = DEFAULT_DESIRED_CONN_TIMEOUT;
 
-        // By setting this to zero, the device will go into the waiting state after
-        // being discoverable for 30.72 second, and will not being advertising again
-        // until the enabler is set back to TRUE
-        uint16 gapRole_AdvertOffTime = 0;
+    // Set the GAP Role Parameters
+    GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &initial_advertising_enable );
+    GAPRole_SetParameter( GAPROLE_ADVERT_OFF_TIME, sizeof( uint16 ), &gapRole_AdvertOffTime );
 
-        uint8 enable_update_request = DEFAULT_ENABLE_UPDATE_REQUEST;
-        uint16 desired_min_interval = DEFAULT_DESIRED_MIN_CONN_INTERVAL;
-        uint16 desired_max_interval = DEFAULT_DESIRED_MAX_CONN_INTERVAL;
-        uint16 desired_slave_latency = DEFAULT_DESIRED_SLAVE_LATENCY;
-        uint16 desired_conn_timeout = DEFAULT_DESIRED_CONN_TIMEOUT;
+    GAPRole_SetParameter( GAPROLE_SCAN_RSP_DATA, sizeof ( scanRspData ), scanRspData );
+    GAPRole_SetParameter( GAPROLE_ADVERT_DATA, sizeof( advertData ), advertData );
 
-        // Set the GAP Role Parameters
-        GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8), &initial_advertising_enable);
-        GAPRole_SetParameter(GAPROLE_ADVERT_OFF_TIME, sizeof(uint16), &gapRole_AdvertOffTime);
-        GAP_SetParamValue(TGAP_LIM_ADV_TIMEOUT, 30);
+    GAPRole_SetParameter( GAPROLE_PARAM_UPDATE_ENABLE, sizeof( uint8 ), &enable_update_request );
+    GAPRole_SetParameter( GAPROLE_MIN_CONN_INTERVAL, sizeof( uint16 ), &desired_min_interval );
+    GAPRole_SetParameter( GAPROLE_MAX_CONN_INTERVAL, sizeof( uint16 ), &desired_max_interval );
+    GAPRole_SetParameter( GAPROLE_SLAVE_LATENCY, sizeof( uint16 ), &desired_slave_latency );
+    GAPRole_SetParameter( GAPROLE_TIMEOUT_MULTIPLIER, sizeof( uint16 ), &desired_conn_timeout );
+  }
 
-        GAPRole_SetParameter(GAPROLE_SCAN_RSP_DATA, sizeof(scanResponseData), scanResponseData);
-        GAPRole_SetParameter(GAPROLE_ADVERT_DATA, sizeof(advertData), advertData);
+  // Set the GAP Characteristics
+  GGS_SetParameter( GGS_DEVICE_NAME_ATT, GAP_DEVICE_NAME_LEN, attDeviceName );
 
-        GAPRole_SetParameter(GAPROLE_PARAM_UPDATE_ENABLE, sizeof(uint8), &enable_update_request);
-        GAPRole_SetParameter(GAPROLE_MIN_CONN_INTERVAL, sizeof(uint16), &desired_min_interval);
-        GAPRole_SetParameter(GAPROLE_MAX_CONN_INTERVAL, sizeof(uint16), &desired_max_interval);
-        GAPRole_SetParameter(GAPROLE_SLAVE_LATENCY, sizeof(uint16), &desired_slave_latency);
-        GAPRole_SetParameter(GAPROLE_TIMEOUT_MULTIPLIER, sizeof(uint16), &desired_conn_timeout);
-        // change broadcast interval to conserve energy
-        GAP_SetParamValue(TGAP_GEN_DISC_ADV_INT_MIN, 1600); //!< Minimum advertising interval, when in General discoverable mode (n * 0.625 mSec)
-        GAP_SetParamValue(TGAP_GEN_DISC_ADV_INT_MAX, 4800); //!< Maximum advertising interval, when in General discoverable mode (n * 0.625 mSec)
-                                                            //GAP_SetParamValue(TGAP_LIM_DISC_ADV_INT_MIN , 800);        //!< Minimum advertising interval, when in General discoverable mode (n * 0.625 mSec)
-                                                            //GAP_SetParamValue(TGAP_LIM_DISC_ADV_INT_MAX , 2400);        //!< Maximum advertising interval, when in General discoverable mode (n * 0.625 mSec)
-    }
+  // Set advertising interval
+  {
+    uint16 advInt = DEFAULT_ADVERTISING_INTERVAL;
 
-    // Set the GAP Characteristics
-    GGS_SetParameter(GGS_DEVICE_NAME_ATT, GAP_DEVICE_NAME_LEN, attDeviceName);
+    GAP_SetParamValue( TGAP_LIM_DISC_ADV_INT_MIN, advInt );
+    GAP_SetParamValue( TGAP_LIM_DISC_ADV_INT_MAX, advInt );
+    GAP_SetParamValue( TGAP_GEN_DISC_ADV_INT_MIN, advInt );
+    GAP_SetParamValue( TGAP_GEN_DISC_ADV_INT_MAX, advInt );
+  }
 
-    // Setup the GAP Bond Manager
-    {
-        uint32 passkey = 0; // passkey "000000"
-        uint8 pairMode = GAPBOND_PAIRING_MODE_WAIT_FOR_REQ;
-        uint8 mitm = FALSE;
-        uint8 ioCap = GAPBOND_IO_CAP_DISPLAY_ONLY;
-        uint8 bonding = TRUE;
-        GAPBondMgr_SetParameter(GAPBOND_DEFAULT_PASSCODE, sizeof(uint32), &passkey);
-        GAPBondMgr_SetParameter(GAPBOND_PAIRING_MODE, sizeof(uint8), &pairMode);
-        GAPBondMgr_SetParameter(GAPBOND_MITM_PROTECTION, sizeof(uint8), &mitm);
-        GAPBondMgr_SetParameter(GAPBOND_IO_CAPABILITIES, sizeof(uint8), &ioCap);
-        GAPBondMgr_SetParameter(GAPBOND_BONDING_ENABLED, sizeof(uint8), &bonding);
-    }
+  // Setup the GAP Bond Manager
+  {
+    uint32 passkey = 0; // passkey "000000"
+    uint8 pairMode = GAPBOND_PAIRING_MODE_WAIT_FOR_REQ;
+    uint8 mitm = TRUE;
+    uint8 ioCap = GAPBOND_IO_CAP_DISPLAY_ONLY;
+    uint8 bonding = TRUE;
+    GAPBondMgr_SetParameter( GAPBOND_DEFAULT_PASSCODE, sizeof ( uint32 ), &passkey );
+    GAPBondMgr_SetParameter( GAPBOND_PAIRING_MODE, sizeof ( uint8 ), &pairMode );
+    GAPBondMgr_SetParameter( GAPBOND_MITM_PROTECTION, sizeof ( uint8 ), &mitm );
+    GAPBondMgr_SetParameter( GAPBOND_IO_CAPABILITIES, sizeof ( uint8 ), &ioCap );
+    GAPBondMgr_SetParameter( GAPBOND_BONDING_ENABLED, sizeof ( uint8 ), &bonding );
+  }
 
-    // Setup the Thermometer Characteristic Values
-    {
-        uint8 thermometerSite = THERMOMETER_TYPE_MOUTH;
-        Thermometer_SetParameter(THERMOMETER_TYPE, sizeof(uint8), &thermometerSite);
+  // Initialize GATT attributes
+  GGS_AddService( GATT_ALL_SERVICES );            // GAP
+  GATTServApp_AddService( GATT_ALL_SERVICES );    // GATT attributes
+  //DevInfo_AddService();                           // Device Information Service
+  SimpleProfile_AddService( GATT_ALL_SERVICES );  // Simple GATT Profile
+#if defined FEATURE_OAD
+  VOID OADTarget_AddService();                    // OAD Profile
+#endif
 
-        thermometerIRange_t thermometerIRange = {4, 60};
-        Thermometer_SetParameter(THERMOMETER_IRANGE, sizeof(uint16), &thermometerIRange);
-    }
+  // Setup the SimpleProfile Characteristic Values
+  {
+    uint8 charValue1 = 0;
+    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof ( uint8 ), &charValue1 );
+  }
 
-    // Stop config reads when done
-    timeConfigDone = FALSE;
 
-    // Initialize GATT Client
-    VOID GATT_InitClient();
+#if defined( CC2540_MINIDK )
 
-    // Register to receive incoming ATT Indications/Notifications
-    GATT_RegisterForInd(thermometerTaskId);
+  SK_AddService( GATT_ALL_SERVICES ); // Simple Keys Profile
 
-    // Initialize GATT attributes
-    GGS_AddService(GATT_ALL_SERVICES);         // GAP
-    GATTServApp_AddService(GATT_ALL_SERVICES); // GATT attributes
-    Thermometer_AddService(GATT_ALL_SERVICES);
-    // DevInfo_AddService();
+  // Register for all key events - This app will handle all key events
+  RegisterForKeys( simpleBLEPeripheral_TaskID );
 
-    // Register for Thermometer service callback
-    Thermometer_Register(thermometerCB);
+  // makes sure LEDs are off
+  HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_OFF );
 
-    // Register for all key events - This app will handle all key events
-    RegisterForKeys(thermometerTaskId);
+  // For keyfob board set GPIO pins into a power-optimized state
+  // Note that there is still some leakage current from the buzzer,
+  // accelerometer, LEDs, and buttons on the PCB.
 
-    // Setup a delayed profile startup
-    osal_set_event(thermometerTaskId, TH_START_DEVICE_EVT);
+  P0SEL = 0; // Configure Port 0 as GPIO
+  P1SEL = 0; // Configure Port 1 as GPIO
+  P2SEL = 0; // Configure Port 2 as GPIO
+
+  P0DIR = 0xFC; // Port 0 pins P0.0 and P0.1 as input (buttons),
+                // all others (P0.2-P0.7) as output
+  P1DIR = 0xFF; // All port 1 pins (P1.0-P1.7) as output
+  P2DIR = 0x1F; // All port 1 pins (P2.0-P2.4) as output
+
+  P0 = 0x03; // All pins on port 0 to low except for P0.0 and P0.1 (buttons)
+  P1 = 0;   // All pins on port 1 to low
+  P2 = 0;   // All pins on port 2 to low
+
+#endif // #if defined( CC2540_MINIDK )
+
+  // Register callback with SimpleGATTprofile
+  VOID SimpleProfile_RegisterAppCBs( &simpleBLEPeripheral_SimpleProfileCBs );
+
+  // Enable clock divide on halt
+  // This reduces active current while radio is active and CC254x MCU
+  // is halted
+  HCI_EXT_ClkDivOnHaltCmd( HCI_EXT_ENABLE_CLK_DIVIDE_ON_HALT );
+
+#if defined ( DC_DC_P0_7 )
+
+  // Enable stack to toggle bypass control on TPS62730 (DC/DC converter)
+  HCI_EXT_MapPmIoPortCmd( HCI_EXT_PM_IO_PORT_P0, HCI_EXT_PM_IO_PORT_PIN7 );
+
+#endif // defined ( DC_DC_P0_7 )
+
+  // Setup a delayed profile startup
+  osal_set_event( simpleBLEPeripheral_TaskID, SBP_START_DEVICE_EVT );
+
 }
 
 /*********************************************************************
- * @fn      Thermometer_ProcessEvent
+ * @fn      SimpleBLEPeripheral_ProcessEvent
  *
- * @brief   Thermometer Application Task event processor.  This function
+ * @brief   Simple BLE Peripheral Application Task event processor.  This function
  *          is called to process all events for the task.  Events
  *          include timers, messages and any other user defined events.
  *
@@ -404,131 +399,61 @@ void Thermometer_Init(uint8 task_id)
  *
  * @return  events not processed
  */
-uint8 sampledtimes = 0;
-extern uint16 time2end;
-uint16 Thermometer_ProcessEvent(uint8 task_id, uint16 events)
+uint16 Thermometer_ProcessEvent( uint8 task_id, uint16 events )
 {
 
-    VOID task_id; // OSAL required parameter that isn't used in this function
-    uint8 notify_interval;
-    int32 n32;
+  VOID task_id; // OSAL required parameter that isn't used in this function
 
-    if (events & SYS_EVENT_MSG)
+  if ( events & SYS_EVENT_MSG )
+  {
+    uint8 *pMsg;
+
+    if ( (pMsg = osal_msg_receive( simpleBLEPeripheral_TaskID )) != NULL )
     {
-        uint8 *pMsg;
+      simpleBLEPeripheral_ProcessOSALMsg( (osal_event_hdr_t *)pMsg );
 
-        if ((pMsg = osal_msg_receive(thermometerTaskId)) != NULL)
-        {
-            thermometer_ProcessOSALMsg((osal_event_hdr_t *)pMsg);
-
-            // Release the OSAL message
-            VOID osal_msg_deallocate(pMsg);
-        }
-
-        // return unprocessed events
-        return (events ^ SYS_EVENT_MSG);
+      // Release the OSAL message
+      VOID osal_msg_deallocate( pMsg );
     }
 
-    if (events & TH_START_DEVICE_EVT)
+    // return unprocessed events
+    return (events ^ SYS_EVENT_MSG);
+  }
+
+  if ( events & SBP_START_DEVICE_EVT )
+  {
+    // Start the Device
+    VOID GAPRole_StartDevice( &simpleBLEPeripheral_PeripheralCBs );
+
+    // Start Bond Manager
+    VOID GAPBondMgr_Register( &simpleBLEPeripheral_BondMgrCBs );
+
+    // Set timer for first periodic event
+    osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_EVT, SBP_PERIODIC_EVT_PERIOD );
+
+    return ( events ^ SBP_START_DEVICE_EVT );
+  }
+
+  if ( events & SBP_PERIODIC_EVT )
+  {
+    // Restart timer
+    if ( SBP_PERIODIC_EVT_PERIOD )
     {
-        // Start the Device
-        VOID GAPRole_StartDevice(&thermometer_PeripheralCBs);
-
-        // Register with bond manager after starting device
-        VOID GAPBondMgr_Register(&thermometer_BondMgrCBs);
-
-        return (events ^ TH_START_DEVICE_EVT);
+      osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_EVT, SBP_PERIODIC_EVT_PERIOD );
     }
 
-    if (events & TH_START_DISCOVERY_EVT)
-    {
-//        if (timeAppPairingStarted)
-//        {
-//            // Postpone discovery until pairing completes
-//            timeAppDiscPostponed = TRUE;
-//        }
-//        else
-//        {
-//            timeAppDiscState = timeAppDiscStart();
-//        }
-//
-//        timeAppDiscState = timeAppDiscStart();
+    // Perform periodic application task
+    //performPeriodicTask();
 
-        return (events ^ TH_START_DISCOVERY_EVT);
-    }
+    return (events ^ SBP_PERIODIC_EVT);
+  }
 
-    //periodic indications - if enabled
-    if (events & TH_PERIODIC_MEAS_EVT)
-    {
-        // Perform periodic application task
-        performPeriodicTask();
-        return (events ^ TH_PERIODIC_MEAS_EVT);
-    }
-    //periodic notifications for IMEAS
-    if (events & TH_PERIODIC_IMEAS_EVT)
-    {
-        // Perform periodic application task
-        performPeriodicImeasTask();
-        return (events ^ TH_PERIODIC_IMEAS_EVT);
-    }
-
-    // Disconnect after sending measurement
-    if (events & TH_DISCONNECT_EVT)
-    {
-
-        uint8 advEnable = FALSE;
-
-        //disable advertising on disconnect
-        GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8), &advEnable);
-
-        // Terminate Connection
-        GAPRole_TerminateConnection();
-
-        return (events ^ TH_DISCONNECT_EVT);
-    }
-    // measure sample
-    if (events & TH_MEAS_EVT)
-    {
-        return (events ^ TH_MEAS_EVT);
-    }
-
-    if (events & TH_CCC_UPDATE_EVT)
-
-        //This event is triggered when CCC is enabled
-        if (gapProfileState == GAPROLE_CONNECTED)
-        {
-            temperatureMeasCharConfig = true;
-
-            //if previously connected and measurements are active send stored
-            if (connectedToLastAddress == true)
-            {
-                //send stored measurements
-                thermometerSendStoredMeas();
-            }
-
-            //Only start meas timer if it's not running
-            if (thMeasTimerRunning == FALSE)
-            {
-                //read stored interval value
-                Thermometer_GetParameter(THERMOMETER_INTERVAL, &notify_interval);
-                n32 = ((uint32)(notify_interval)) * (1000);
-
-                //zero interval means should not perform meas
-                if (n32 != 0)
-                {
-                    // Start interval timer
-                    osal_start_timerEx(thermometerTaskId, TH_PERIODIC_MEAS_EVT, n32);
-                    thMeasTimerRunning = TRUE;
-                }
-            }
-            return (events ^ TH_CCC_UPDATE_EVT);
-        }
-
-    return 0;
+  // Discard unknown events
+  return 0;
 }
 
 /*********************************************************************
- * @fn      thermometer_ProcessOSALMsg
+ * @fn      simpleBLEPeripheral_ProcessOSALMsg
  *
  * @brief   Process an incoming task message.
  *
@@ -536,75 +461,93 @@ uint16 Thermometer_ProcessEvent(uint8 task_id, uint16 events)
  *
  * @return  none
  */
-static void thermometer_ProcessOSALMsg(osal_event_hdr_t *pMsg)
+static void simpleBLEPeripheral_ProcessOSALMsg( osal_event_hdr_t *pMsg )
 {
-    switch (pMsg->event)
-    {
+  switch ( pMsg->event )
+  {
+  #if defined( CC2540_MINIDK )
     case KEY_CHANGE:
-        
-        break;
-    case GATT_MSG_EVENT:
-        
-        break;
+      simpleBLEPeripheral_HandleKeys( ((keyChange_t *)pMsg)->state, ((keyChange_t *)pMsg)->keys );
+      break;
+  #endif // #if defined( CC2540_MINIDK )
 
-    default:
-        break;
-    }
+  default:
+    // do nothing
+    break;
+  }
 }
 
-void begin_temp_record(void)
-{
-    for (int i = 0; i < 240; i++)
-    {
-        devInfoModelNumber[i] = 0;
-    }
-
-    NPI_WriteTransport("interval_set!\n", 16);
-
-    sampledtimes = 0;
-    temp_recording = 1;
-    if (time2end <= 5)
-    { // test mode
-        osal_start_timerEx(thermometerTaskId, TH_MEAS_EVT, 5000);
-    }
-    else
-    {
-        osal_start_timerEx(thermometerTaskId, TH_MEAS_EVT, 300000);
-    }
-}
+#if defined( CC2540_MINIDK )
 /*********************************************************************
- * @fn      thermometer_Advertise
+ * @fn      simpleBLEPeripheral_HandleKeys
  *
- * @brief   Start advertisemement when measurement is ready
+ * @brief   Handles all key events for this device.
  *
+ * @param   shift - true if in shift/alt.
+ * @param   keys - bit field for key events. Valid entries:
+ *                 HAL_KEY_SW_2
+ *                 HAL_KEY_SW_1
  *
  * @return  none
  */
-static void thermometer_Advertise(void)
+static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys )
 {
+  uint8 SK_Keys = 0;
 
-    // Advertise if not connected
-    if (gapProfileState != GAPROLE_CONNECTED)
+  VOID shift;  // Intentionally unreferenced parameter
+
+  if ( keys & HAL_KEY_SW_1 )
+  {
+    SK_Keys |= SK_KEY_LEFT;
+    if(HalLedGetState())
+        HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_OFF );
+      else
+        HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_ON );
+  }
+
+  if ( keys & HAL_KEY_SW_2 )
+  {
+
+    SK_Keys |= SK_KEY_RIGHT;
+
+    // if device is not in a connection, pressing the right key should toggle
+    // advertising on and off
+    // Note:  If PLUS_BROADCASTER is define this condition is ignored and
+    //        Device may advertise during connections as well. 
+#ifndef PLUS_BROADCASTER  
+    if( gapProfileState != GAPROLE_CONNECTED )
     {
-        uint8 current_adv_enabled_status;
-        uint8 new_adv_enabled_status;
+#endif // PLUS_BROADCASTER
+      uint8 current_adv_enabled_status;
+      uint8 new_adv_enabled_status;
 
-        //Find the current GAP advertisement status
-        GAPRole_GetParameter(GAPROLE_ADVERT_ENABLED, &current_adv_enabled_status);
+      //Find the current GAP advertisement status
+      GAPRole_GetParameter( GAPROLE_ADVERT_ENABLED, &current_adv_enabled_status );
 
-        if (current_adv_enabled_status == FALSE)
-        {
-            new_adv_enabled_status = TRUE;
-        }
+      if( current_adv_enabled_status == FALSE )
+      {
+        new_adv_enabled_status = TRUE;
+      }
+      else
+      {
+        new_adv_enabled_status = FALSE;
+      }
 
-        //change the GAP advertisement status
-        GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8), &new_adv_enabled_status);
+      //change the GAP advertisement status to opposite of current status
+      GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &new_adv_enabled_status );
+#ifndef PLUS_BROADCASTER
     }
-}
+#endif // PLUS_BROADCASTER
+  }
 
+  // Set the value of the keys state to the Simple Keys Profile;
+  // This will send out a notification of the keys state if enabled
+  SK_SetParameter( SK_KEY_ATTR, sizeof ( uint8 ), &SK_Keys );
+}
+#endif // #if defined( CC2540_MINIDK )
 
 /*********************************************************************
- * @fn      gapProfileStateCB
+ * @fn      peripheralStateNotificationCB
  *
  * @brief   Notification from the profile of a state change.
  *
@@ -612,422 +555,162 @@ static void thermometer_Advertise(void)
  *
  * @return  none
  */
-static void peripheralStateNotificationCB(gaprole_States_t newState)
+static void peripheralStateNotificationCB( gaprole_States_t newState )
 {
+#ifdef PLUS_BROADCASTER
+  static uint8 first_conn_flag = 0;
+#endif // PLUS_BROADCASTER
+  
+  
+  switch ( newState )
+  {
+    case GAPROLE_STARTED:
+      {
+        uint8 ownAddress[B_ADDR_LEN];
+        uint8 systemId[DEVINFO_SYSTEM_ID_LEN];
 
-    // if connected
-    if (newState == GAPROLE_CONNECTED)
-    {
-        linkDBItem_t *pItem;
+        GAPRole_GetParameter(GAPROLE_BD_ADDR, ownAddress);
 
-        // Get connection handle
-        GAPRole_GetParameter(GAPROLE_CONNHANDLE, &gapConnHandle);
+        // use 6 bytes of device address for 8 bytes of system ID value
+        systemId[0] = ownAddress[0];
+        systemId[1] = ownAddress[1];
+        systemId[2] = ownAddress[2];
 
-        // Get peer bd address
-        if ((pItem = linkDB_Find(gapConnHandle)) != NULL)
-        {
-            // If connected to device without bond do service discovery
-            if (!osal_memcmp(pItem->addr, timeAppBondedAddr, B_ADDR_LEN))
-            {
-                timeAppDiscoveryCmpl = FALSE;
-            }
-            else
-            {
-                timeAppDiscoveryCmpl = TRUE;
-            }
+        // set middle bytes to zero
+        systemId[4] = 0x00;
+        systemId[3] = 0x00;
 
-            // if this was last connection address don't do discovery
-            if (osal_memcmp(pItem->addr, lastConnAddr, B_ADDR_LEN))
-            {
-                timeAppDiscoveryCmpl = TRUE;
-                connectedToLastAddress = true;
-            }
-            else
-            {
-                //save the last connected address
-                osal_memcpy(lastConnAddr, pItem->addr, B_ADDR_LEN);
-            }
+        // shift three bytes up
+        systemId[7] = ownAddress[5];
+        systemId[6] = ownAddress[4];
+        systemId[5] = ownAddress[3];
 
-            // Initiate service discovery if necessary
-            if (timeAppDiscoveryCmpl == FALSE)
-            {
-                osal_start_timerEx(thermometerTaskId, TH_START_DISCOVERY_EVT, DEFAULT_DISCOVERY_DELAY);
-            }
+        DevInfo_SetParameter(DEVINFO_SYSTEM_ID, DEVINFO_SYSTEM_ID_LEN, systemId);
 
-            //on connection initiate disconnect timer in 20 seconds
-            //zhuying
-            //osal_start_timerEx( thermometerTaskId, TH_DISCONNECT_EVT, DEFAULT_TERMINATE_DELAY );
-        }
-    }
-    // if disconnected
-    else if (gapProfileState == GAPROLE_CONNECTED &&
-             newState != GAPROLE_CONNECTED)
-    {
-        //always stop intermediate timer
-        osal_stop_timerEx(thermometerTaskId, TH_PERIODIC_IMEAS_EVT);
-    }
-    // if started
-    else if (newState == GAPROLE_STARTED)
-    {
+      }
+      break;
 
-    }
+    case GAPROLE_ADVERTISING:
+      {
+       
+      }
+      break;
 
-    gapProfileState = newState;
-}
+    case GAPROLE_CONNECTED:
+      {        
 
-/*********************************************************************
- * @fn      thermometerSendStoredMeas
- *
- * @brief   Prepare and send a stored Meas Indication
- *
- * @return  none
- */
-static void thermometerSendStoredMeas(void)
-{
-    bStatus_t status;
+      }
+      break;
 
-    //we connected to this peer before so send any stored measurements
-    if (thStoreStartIndex != thStoreIndex)
-    {
-        //send Measurement
-        status = Thermometer_TempIndicate(gapConnHandle, &thStoreMeas[thStoreStartIndex], thermometerTaskId);
+    case GAPROLE_CONNECTED_ADV:
+      {
 
-        if (status == SUCCESS)
-        {
-            thStoreStartIndex = thStoreStartIndex + 1;
+      }
+      break;      
+    case GAPROLE_WAITING:
+      {
 
-            // wrap around buffer
-            if (thStoreStartIndex > TH_STORE_MAX)
-            {
-                thStoreStartIndex = 0;
-            }
-        }
-    }
-}
+      }
+      break;
 
-/*********************************************************************
- * @fn      thermometerMeasIndicate
- *
- * @brief   Prepare and send a thermometer measurement notification
- *
- * @return  none
- */
-static void thermometerMeasIndicate(void)
-{
+    case GAPROLE_WAITING_AFTER_TIMEOUT:
+      {
 
-    // att value notification structure
-    uint8 *p = thermometerMeas.value;
+      }
+      break;
 
-    // temperature
-    uint32 temperature;
+    case GAPROLE_ERROR:
+      {
 
-    NPI_WriteTransport("temperature Indicate\n", 22);
+      }
+      break;
 
-    temperature = thermometerCelcius;
-
-    temperature = 0xFF000000 | temperature;
-
-    //osal_buffer_uint32
-    osal_buffer_uint32(p, temperature);
-
-    //temperature is 4 bytes long
-    *p++;
-    *p++;
-    *p++;
-    *p++;
-
-    //timestamp
-    if (0 & THERMOMETER_FLAGS_TIMESTAMP)
-    {
-
-        UTCTimeStruct time;
-
-        // Get time structure from OSAL
-        osal_ConvertUTCTime(&time, osal_getClock());
-
-        *p++ = (time.year & 0x00FF);
-        *p++ = (time.year & 0xFF00) >> 8;
-        //*p++ = time.year;
-        //*p++;
-
-        *p++ = time.month;
-        *p++ = time.day;
-        *p++ = time.hour;
-        *p++ = time.minutes;
-        *p++ = time.seconds;
-    }
-
-    thermometerMeas.len = (uint8)(p - thermometerMeas.value);
-    thermometerMeas.handle = THERMOMETER_TEMP_VALUE_POS;
-
-    thermometerStoreIndications(&thermometerMeas);
-
-    //advertise measurement is ready
-    thermometer_Advertise();
-}
-
-/*********************************************************************
- * @fn      thermometerStoreIndications
- *
- * @brief   Queue indications
- *
- * @return  none
- */
-static void thermometerStoreIndications(attHandleValueInd_t *pInd)
-{
-
-    //store measurement
-    osal_memcpy(&thStoreMeas[thStoreIndex], pInd, sizeof(attHandleValueInd_t));
-
-    //store index
-    thStoreIndex = thStoreIndex + 1;
-    if (thStoreIndex > TH_STORE_MAX)
-    {
-        thStoreIndex = 0;
-    }
-
-    if (thStoreIndex == thStoreStartIndex)
-    {
-        thStoreStartIndex = thStoreStartIndex + 1;
-        if (thStoreStartIndex > TH_STORE_MAX)
-        {
-            thStoreStartIndex = 0;
-        }
-    }
-}
-
-void ChangeValueToString(uint32 Data, uint8 *Buff) //����ֵת��Ϊ�ַ���
-{
-    Buff[0] = ((Data / 1000) % 10) + 0x30;
-    Buff[1] = ((Data / 100) % 10) + 0x30;
-    Buff[2] = ((Data / 10) % 10) + 0x30;
-    Buff[3] = (Data % 10) + 0x30;
-    Buff[4] = '\n';
-    Buff[5] = '\0';
-}
-
-/*********************************************************************
- * @fn      thermometerMeasIndicate
- *
- * @brief   Prepare and send a thermometer measurement notification
- *
- * @return  none
- */
-static void thermometerImeasNotify(void)
-{
-
-    // att value notification structure
-    uint8 *p = thermometerIMeas.value;
-
-    // temperature
-    uint32 temperature;
-
-    //used for uart
-    //uint8 buf[6];
-    // flags 1 byte long
-    //TR0 = TR0_ADCTM;
-    //ATEST = 1;
-
-    //NPI_WriteTransport("temperature notify \n",22);
-
-    ////thermometerCelcius = (ADCL >> 4);  // ��ʹ�ŵ��¸����ڶ�����ʹ�ȴ�eoc����Ҳ�Ǹ�û��eocʱ�Ͷ��Ľ��һ������Ҫ�������飬Ŀ��������while��������߾���
-    ////thermometerCelcius |= (ADCH << 4);
-    ////ChangeValueToString(thermometerCelcius, &buf[0]);
-    ////NPI_WriteTransport(buf,6);
-
-    //ADCCON1 |= ADCCON1_ST;
-    //while( !(ADCCON1 & ADCCON1_EOC));
-    //thermometerCelcius = (ADCL >> 4);
-    //thermometerCelcius |= (ADCH << 4);
-    //ChangeValueToString(thermometerCelcius, &buf[0]);
-    // NPI_WriteTransport(buf,6);
-
-    //osal_start_timerEx( thermometerTaskId, TH_PERIODIC_IMEAS_EVT, 100 );//1000
-    //temperature = 0x66;
-    //  temperature = 0xFF000000 | temperature;
-    //
-    //  //osal_buffer_uint32
-    //  osal_buffer_uint32( p, temperature );
-    //
-    //  //temperature is 4 bytes long
-    //  p+=4;
-    //
-    //  thermometerIMeas.len = (uint8) (p - thermometerIMeas.value);
-    //
-    //  if(temperatureIMeasCharConfig == true)
-    //  {
-    //  Thermometer_IMeasNotify( gapConnHandle, &thermometerIMeas);
-    //  }
-}
-
-/*********************************************************************
- * @fn      thermometerCB
- *
- * @brief   Callback function for thermometer service.
- *
- * @param   event - service event
- *
- * @return  none
- */
-
-static void thermometerCB(uint8 event)
-{
-    switch (event)
-    {
-    case THERMOMETER_TEMP_IND_ENABLED:
-        osal_set_event(thermometerTaskId, TH_CCC_UPDATE_EVT);
-        break;
-
-    case THERMOMETER_TEMP_IND_DISABLED:
-        temperatureMeasCharConfig = false;
-        osal_stop_timerEx(thermometerTaskId, TH_PERIODIC_MEAS_EVT);
-        thMeasTimerRunning = FALSE;
-        break;
-
-    case THERMOMETER_IMEAS_NOTI_ENABLED:
-        if (gapProfileState == GAPROLE_CONNECTED)
-        {
-            osal_start_timerEx(thermometerTaskId, TH_PERIODIC_IMEAS_EVT, 100); //1000
-        }
-        break;
-
-    case THERMOMETER_IMEAS_NOTI_DISABLED:
-        osal_stop_timerEx(thermometerTaskId, TH_PERIODIC_IMEAS_EVT);
-        break;
-
-    case THERMOMETER_INTERVAL_IND_ENABLED:
-        if (gapProfileState == GAPROLE_CONNECTED)
-        {
-        }
-        break;
-
-    case THERMOMETER_INTERVAL_IND_DISABLED:
-        if (gapProfileState == GAPROLE_CONNECTED)
-        {
-        }
-        break;
-        //fake interval change
-    case THERMOMETER_INTERVAL_SET:
-
-        if (gapProfileState == GAPROLE_CONNECTED)
-        {
-            begin_temp_record();
-        }
-        break;
     default:
-        break;
-    }
+      {
+
+      }
+      break;
+
+  }
+
+  gapProfileState = newState;
+
+#if !defined( CC2540_MINIDK )
+  VOID gapProfileState;     // added to prevent compiler warning with
+                            // "CC2540 Slave" configurations
+#endif
+
+
 }
 
+#if 0
 /*********************************************************************
  * @fn      performPeriodicTask
  *
- * @brief   Perform a periodic application task.
+ * @brief   Perform a periodic application task. This function gets
+ *          called every five seconds as a result of the SBP_PERIODIC_EVT
+ *          OSAL event. In this example, the value of the third
+ *          characteristic in the SimpleGATTProfile service is retrieved
+ *          from the profile, and then copied into the value of the
+ *          the fourth characteristic.
  *
  * @param   none
  *
  * @return  none
  */
-static void performPeriodicTask(void)
+static void performPeriodicTask( void )
 {
-    uint8 notify_interval;
-    int32 n32;
+  uint8 valueToCopy;
+  uint8 stat;
 
-    //Measurement Ready - send if Client Configuration is Configured
-    if (temperatureMeasCharConfig == true)
-    {
-        //read stored interval value
-        Thermometer_GetParameter(THERMOMETER_INTERVAL, &notify_interval);
+  // Call to retrieve the value of the third characteristic in the profile
+  stat = SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR3, &valueToCopy);
 
-        n32 = ((uint32)(notify_interval)) * (1000);
-
-        //if interval is zero don't send indication
-        if (n32 != 0)
-        {
-            // send thermometer measurement notification
-            thermometerMeasIndicate();
-
-            // Start interval timer
-            osal_start_timerEx(thermometerTaskId, TH_PERIODIC_MEAS_EVT, n32);
-        }
-    }
+  if( stat == SUCCESS )
+  {
+    /*
+     * Call to set that value of the fourth characteristic in the profile. Note
+     * that if notifications of the fourth characteristic have been enabled by
+     * a GATT client device, then a notification will be sent every time this
+     * function is called.
+     */
+    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR4, sizeof(uint8), &valueToCopy);
+  }
 }
+#endif
+
 /*********************************************************************
- * @fn      performPeriodicImeasTask
+ * @fn      simpleProfileChangeCB
  *
- * @brief   Perform a periodic application task.
+ * @brief   Callback from SimpleBLEProfile indicating a value change
  *
- * @param   none
+ * @param   paramID - parameter ID of the value that was changed.
  *
  * @return  none
  */
-static void performPeriodicImeasTask(void)
+static void simpleProfileChangeCB( uint8 paramID )
 {
+  uint8 newValue;
 
-    if (gapProfileState == GAPROLE_CONNECTED)
-    {
-        // send thermometer measurement notification
-        thermometerImeasNotify();
+  switch( paramID )
+  {
+    case SIMPLEPROFILE_CHAR1:
+      SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR1, &newValue );
+      
+        static uint8 dr = 0;
+        dr = dr==0 ? 1:0;
+        softled_kill_set(dr);
 
-        // Start interval timer (simulated fast measurement for display)
-        osal_start_timerEx(thermometerTaskId, TH_PERIODIC_IMEAS_EVT, NOTIFY_INTERVAL);
-    }
+      break;
+      case SIMPLEPROFILE_CHAR3: {
+        static uint8 dr = 0;
+        dr = dr==0 ? 1:0;
+        softled_kill_set(dr);
+      } break;
+
+    default:
+      // should not reach here!
+      break;
+  }
 }
 
-/*********************************************************************
- * @fn      timeAppPasscodeCB
- *
- * @brief   Passcode callback.
- *
- * @return  none
- */
-static void timeAppPasscodeCB(uint8 *deviceAddr, uint16 connectionHandle,
-                              uint8 uiInputs, uint8 uiOutputs)
-{
-    // Send passcode response
-    GAPBondMgr_PasscodeRsp(connectionHandle, SUCCESS, 0);
-}
-
-/*********************************************************************
- * @fn      pairStateCB
- *
- * @brief   Pairing state callback.
- *
- * @return  none
- */
-static void timeAppPairStateCB(uint16 connHandle, uint8 state, uint8 status)
-{
-    if (state == GAPBOND_PAIRING_STATE_STARTED)
-    {
-
-    }
-    else if (state == GAPBOND_PAIRING_STATE_COMPLETE)
-    {
-        if (status == SUCCESS)
-        {
-            linkDBItem_t *pItem;
-
-            if ((pItem = linkDB_Find(gapConnHandle)) != NULL)
-            {
-                // Store bonding state of pairing
-                timeAppBonded = ((pItem->stateFlags & LINK_BOUND) == LINK_BOUND);
-
-                if (timeAppBonded)
-                {
-                    osal_memcpy(timeAppBondedAddr, pItem->addr, B_ADDR_LEN);
-                }
-            }
-
-            // If discovery was postponed start discovery
-            if (timeAppDiscPostponed && timeAppDiscoveryCmpl == FALSE)
-            {
-                timeAppDiscPostponed = FALSE;
-                osal_set_event(thermometerTaskId, TH_START_DISCOVERY_EVT);
-            }
-        }
-    }
-}
-
-
-/*********************************************************************
-*********************************************************************/

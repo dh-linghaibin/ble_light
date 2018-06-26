@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">lightControl</string>
+
+    <string name="title_1">上课</string>
+    <string name="title_2">投影</string>
+    <string name="title_3">自习</string>
+    <string name="title_4">活动</string>
+
+    <string name="text_1">Lorem ipsum dolor sit amet, consectetur adipiscing elit.  Etiam eget ligula eu lectus lobortis condimentum.</string>
 </resources>
