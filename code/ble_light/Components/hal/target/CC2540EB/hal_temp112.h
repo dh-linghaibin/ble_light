@@ -49,8 +49,22 @@ extern "C"
 #include "hal_types.h"
 #include "common.h"
 
+typedef enum _touch_name {
+    TN_NULL = 0,
+    ATTEND_CLASS = 1,
+    PROJECTION = 2,
+    SELF_STUDY = 3,
+    ACTIVITY = 4,
+    BRIGHTNESS_ADD = 5,
+    BRIGHTNESS_SUB = 6,
+    COLOR_TRMP_ADD = 7,
+    COLOR_TRMP_SUB = 8,
+    SWITCH = 9,
+} touch_name;
+    
 void xw09a_init(void);
 uint16 xw09a_get(void);
+touch_name get_touch(void);
 
 #ifdef __cplusplus
 }

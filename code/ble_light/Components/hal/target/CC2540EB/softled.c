@@ -34,9 +34,9 @@ uint8 softled_get_key(void) {
 
 void softled_enable_set(uint8 flag) {
     if(flag) {
-        I2CIO = 0x03;
-    } else {
         I2CIO = 0x00;
+    } else {
+        I2CIO = 0x03;
     }
 }
 

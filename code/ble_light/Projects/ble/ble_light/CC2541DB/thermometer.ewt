@@ -2115,12 +2115,6 @@
             <name>$PROJ_DIR$\..\Source\OSAL_Thermometer.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\Profiles\Proximity\proxreporter.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\Profiles\Proximity\proxreporter.h</name>
-        </file>
-        <file>
             <name>$PROJ_DIR$\..\Source\thermometer.c</name>
         </file>
         <file>
