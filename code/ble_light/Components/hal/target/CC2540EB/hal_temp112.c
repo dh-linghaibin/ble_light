@@ -84,8 +84,10 @@ touch_name get_touch(void) {
     if( (val&0x2000) == 0x2000) {
         flag[4] = 0;
     } else {
-        if(flag[4] == 0) {
-            flag[4] = 1;
+        if(flag[4] < 5) {
+            flag[4]++;
+        } else {
+            flag[4] = 0;
             return BRIGHTNESS_ADD;
         }
     }
@@ -93,8 +95,10 @@ touch_name get_touch(void) {
     if( (val&0x1000) == 0x1000) {
         flag[5] = 0;
     } else {
-        if(flag[5] == 0) {
-            flag[5] = 1;
+        if(flag[5] < 5) {
+            flag[5]++;
+        } else {
+            flag[5] = 0;
             return BRIGHTNESS_SUB;
         }
     }
@@ -102,18 +106,22 @@ touch_name get_touch(void) {
     if( (val&0x8) == 0x8) {
         flag[6] = 0;
     } else {
-        if(flag[6] == 0) {
-            flag[6] = 1;
-            return COLOR_TRMP_ADD;
+        if(flag[6] < 5) {
+            flag[6]++;
+        } else {
+            flag[6] = 0;
+            return COLOR_TRMP_SUB;
         }
     }
     
     if( (val&0x4) == 0x4) {
         flag[7] = 0;
     } else {
-        if(flag[7] == 0) {
-            flag[7] = 1;
-            return COLOR_TRMP_SUB;
+        if(flag[7] < 5) {
+            flag[7]++;
+        } else {
+            flag[7] = 0;
+            return COLOR_TRMP_ADD;
         }
     }
     

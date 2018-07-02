@@ -56,17 +56,21 @@ typedef enum _device_name {
     BLACK_LIGHT  = 4, //黑板灯
 } device_name;
 
-static uint8 pair_device[][5] = { 
-    {BACT_LIGHT,0x01,0x00,0x00,0x00}, /* 类型 地址 值 是否需要更新 */
-    {BLACK_LIGHT,0x02,0x00,0x00,0x00},
+static uint8 pair_device[][7] = { 
+    {BACT_LIGHT,0x02,0x00,0x00,0x00,0x00,0x00}, /* 类型 地址 值 是否需要更新 */
+    {BLACK_LIGHT,0x01,0x00,0x00,0x00,0x00,0x00},
+    {BACT_LIGHT,0x03,0x00,0x00,0x00,0x00,0x00},
 };
 
-static uint8 work_num = 0xff;
+//static uint8 work_num = 0xff;
 
 static uint8 open_flag = 0;
 static uint8 light_mode = 4;
 static uint16 last_light_intensty = 8000;
 static uint8 kill_flag = 0;
+static uint8 light_set = 0;
+
+static uint8 work_num = 0;
 
 uint16 GUA_ProcessEvent(uint8 task_id, uint16 events)
 {
@@ -96,6 +100,7 @@ uint16 GUA_ProcessEvent(uint8 task_id, uint16 events)
                     softled_mode_set(1);
                     
                     last_light_intensty = 8000;
+                    light_set = 100;
                     
                     for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
                         if(pair_device[i][0] == BACT_LIGHT) {
@@ -115,6 +120,7 @@ uint16 GUA_ProcessEvent(uint8 task_id, uint16 events)
                     softled_mode_set(2);
                     
                     last_light_intensty = 8000;
+                    light_set = 50;
                     
                     for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
                         if(pair_device[i][0] == BACT_LIGHT) {
@@ -134,6 +140,7 @@ uint16 GUA_ProcessEvent(uint8 task_id, uint16 events)
                     softled_mode_set(3);
                     
                     last_light_intensty = 8000;
+                    light_set = 100;
                     
                     for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
                         if(pair_device[i][0] == BACT_LIGHT) {
@@ -153,6 +160,7 @@ uint16 GUA_ProcessEvent(uint8 task_id, uint16 events)
                     softled_mode_set(4);
                     
                     last_light_intensty = 8000;
+                    light_set = 80;
                     
                     for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
                         if(pair_device[i][0] == BACT_LIGHT) {
@@ -168,28 +176,252 @@ uint16 GUA_ProcessEvent(uint8 task_id, uint16 events)
             } break;
             case BRIGHTNESS_ADD: {
                 if(open_flag == 1) {
-                
+                    
+                    if( light_set+5 < 100 ) {
+                        light_set += 5;
+                    } else {
+                        light_set = 100;
+                    }
+                    
+                    switch(light_mode) {
+                        case 1: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                                if(pair_device[i][0] == BLACK_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 2: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 3: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 4: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                    }
                 }
             } break;
             case BRIGHTNESS_SUB: {
                 if(open_flag == 1) {
-                
+                    
+                    if( (light_set-5) > 20 ) {
+                        light_set -= 5;
+                    } else {
+                        light_set = 20;
+                    }
+                    
+                    switch(light_mode) {
+                        case 1: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                                if(pair_device[i][0] == BLACK_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 2: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 3: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 4: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                    }
                 }
             } break;
             case COLOR_TRMP_ADD: {
                 if(open_flag == 1) {
-                
+
+                    if( light_set+5 < 100 ) {
+                        light_set += 5;
+                    } else {
+                        light_set = 100;
+                    }
+                    
+                    switch(light_mode) {
+                        case 1: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                                if(pair_device[i][0] == BLACK_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 2: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 3: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 4: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                    }
                 }
             } break;
             case COLOR_TRMP_SUB: {
                 if(open_flag == 1) {
-                
+                    
+                    if( (light_set-5) > 20 ) {
+                        light_set -= 5;
+                    } else {
+                        light_set = 20;
+                    }
+                    
+                    switch(light_mode) {
+                        case 1: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                                if(pair_device[i][0] == BLACK_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 2: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 3: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 4: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = light_set;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                    }
                 }
             } break;
             case SWITCH: {
                 if(open_flag == 0) {
                     open_flag = 1;
                     softled_mode_set(light_mode);
+                    
+                    switch(light_mode) {
+                        case 1: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = 100;
+                                    pair_device[i][4] = 5;
+                                }
+                                if(pair_device[i][0] == BLACK_LIGHT) {
+                                    pair_device[i][3] = 100;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 2: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = 50;
+                                    pair_device[i][4] = 5;
+                                }
+                                if(pair_device[i][0] == BLACK_LIGHT) {
+                                    pair_device[i][3] = 0;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 3: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = 100;
+                                    pair_device[i][4] = 5;
+                                }
+                                if(pair_device[i][0] == BLACK_LIGHT) {
+                                    pair_device[i][3] = 0;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                        case 4: {
+                            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                                if(pair_device[i][0] == BACT_LIGHT) {
+                                    pair_device[i][3] = 80;
+                                    pair_device[i][4] = 5;
+                                }
+                            }
+                        } break;
+                    }
+                    
                 } else {
                     open_flag = 0;
                     softled_mode_set(0);
@@ -231,13 +463,14 @@ uint16 GUA_ProcessEvent(uint8 task_id, uint16 events)
         
         uint8 buf[32] = {0};
         if(!nRF24L01P_RxPacket(buf)) {
-            if( (work_num != 0xff) && ( work_num < ( sizeof(pair_device)/sizeof(pair_device[0]) ) ) ){ /* 是否在工作 */
-                if( (buf[0] == 0x3a) && (buf[7] == 0x0a) ) { /* 判断头尾 */
-                    if( buf[6] == (uint8)(buf[1] + buf[2] + buf[3] + buf[4] + buf[5]) ) { /* 累加校验 */
-                        if( (pair_device[work_num][1] == buf[1]) && (pair_device[work_num][2] == buf[2]) ) {
-                            if(buf[4] == 0x88) {
-                                pair_device[work_num][4] = 0;
-                                work_num = 0xff;
+            if( buf[6] == (uint8)(buf[1] + buf[2] + buf[3] + buf[4] + buf[5]) ) { /* 累加校验 */
+//                kill_flag = kill_flag==0 ? 1:0;
+//                softled_kill_set(kill_flag);
+                for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+                    if( (pair_device[i][1] == buf[1]) && (pair_device[i][2] == buf[2]) ) {
+                        if(buf[4] == 0x88) {
+                            if(pair_device[i][4] != 5) {
+                                pair_device[i][4] = 0;
                             }
                         }
                     }
@@ -256,18 +489,28 @@ uint16 GUA_ProcessEvent(uint8 task_id, uint16 events)
             
             static uint8 light_intensty_flag = 0;
             
-            if(abs(light_intensty - last_light_intensty) > 100) {
-                if(light_intensty_flag < 10) {
+            if(abs(light_intensty - last_light_intensty) > 400) {
+                if(light_intensty_flag < 20) {
                     light_intensty_flag++;
                 } else {
                     last_light_intensty = light_intensty;
-                    uint8 intensty = (uint8)(light_intensty/60.00);
+                    uint8 intensty = (uint8)(light_intensty/50.00);
                     uint8 val = 0;
                     if( (100-intensty) > 0 ) {
                         val = 100-intensty;
                     }
+                    if(intensty > 100) {
+                        intensty = 100;
+                    }
                     switch(light_mode) {
                         case 1: {
+                            if(val > light_set) {
+                                val = light_set;
+                            }
+                            
+                            if(val < 16) {
+                                val = 16;
+                            }
                             for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
                                 if(pair_device[i][0] == BACT_LIGHT) {
                                     pair_device[i][3] = val;
@@ -280,8 +523,12 @@ uint16 GUA_ProcessEvent(uint8 task_id, uint16 events)
                             }
                         } break;
                         case 2: {
-                            if(val > 50) {
-                                val = 50;
+                            if(val > light_set) {
+                                val = light_set;
+                            }
+                            
+                            if(val < 16) {
+                                val = 16;
                             }
                             for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
                                 if(pair_device[i][0] == BACT_LIGHT) {
@@ -291,6 +538,13 @@ uint16 GUA_ProcessEvent(uint8 task_id, uint16 events)
                             }
                         } break;
                         case 3: {
+                            if(val > light_set) {
+                                val = light_set;
+                            }
+                            
+                            if(val < 16) {
+                                val = 16;
+                            }
                             for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
                                 if(pair_device[i][0] == BACT_LIGHT) {
                                     pair_device[i][3] = val;
@@ -299,8 +553,12 @@ uint16 GUA_ProcessEvent(uint8 task_id, uint16 events)
                             }
                         } break;
                         case 4: {
-                            if(val > 90) {
-                                val = 90;
+                            if(val > light_set) {
+                                val = light_set;
+                            }
+                            
+                            if(val < 16) {
+                                val = 16;
                             }
                             for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
                                 if(pair_device[i][0] == BACT_LIGHT) {
@@ -316,116 +574,82 @@ uint16 GUA_ProcessEvent(uint8 task_id, uint16 events)
             }
         }
         
-        if( (work_num != 0xff) && ( work_num < ( sizeof(pair_device)/sizeof(pair_device[0]) ) ) ) {
-            static uint8 tx_count = 0;
-            if( tx_count < 3 ) {
-                tx_count++;
-            } else {
-                tx_count = 0;
-                if(pair_device[work_num][4] > 0) {
-                    pair_device[work_num][4]--;
-                    uint8 t_buf[32] = {0};
-                    t_buf[0] = 0x3a;
-                    t_buf[1] = pair_device[work_num][1];
-                    t_buf[2] = pair_device[work_num][2];
-                    t_buf[3] = 0x01;
-                    t_buf[4] = pair_device[work_num][3];
-                    t_buf[5] = kill_flag;
-                    t_buf[6] = t_buf[1] + t_buf[2] + t_buf[3] + t_buf[4] + t_buf[5];
-                    t_buf[7] = 0x0a;
-                    nRF24L01P_TX_Mode();
-                    nRF24L01P_TxPacket(t_buf);
-                    t_buf[0] = 0;
-                    nRF24L01P_RX_Mode();
+        uint8 cmd_flag = 0;
+        for(int i = work_num; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+            if(pair_device[i][4] == 5) {
+                pair_device[i][4] = 4;
+
+                uint8 t_buf[32] = {0};
+                t_buf[0] = 0x3a;
+                t_buf[1] = pair_device[i][1];
+                t_buf[2] = pair_device[i][2];
+                t_buf[3] = 0x01;
+                t_buf[4] = pair_device[i][3];
+                t_buf[5] = kill_flag;
+                t_buf[6] = t_buf[1] + t_buf[2] + t_buf[3] + t_buf[4] + t_buf[5];
+                t_buf[7] = 0x0a;
+                nRF24L01P_TX_Mode();
+                nRF24L01P_TxPacket(t_buf);
+                t_buf[0] = 0;
+                nRF24L01P_RX_Mode();
+                
+                cmd_flag = 1;
+                break;
+            } else if(pair_device[i][4] == 4) {
+                if(pair_device[i][5] < 2) {
+                    pair_device[i][5]++;
                 } else {
-                    work_num = 0xff;
-                }
-            }
-        } else {
-            for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
-                if(pair_device[i][4] != 0) {
-                    work_num = i;
-                    
-                    if(pair_device[work_num][4] > 0) {
-                        pair_device[work_num][4]--;
-                        uint8 t_buf[32] = {0};
-                        t_buf[0] = 0x3a;
-                        t_buf[1] = pair_device[work_num][1];
-                        t_buf[2] = pair_device[work_num][2];
-                        t_buf[3] = 0x01;
-                        t_buf[4] = pair_device[work_num][3];
-                        t_buf[5] = kill_flag;
-                        t_buf[6] = t_buf[1] + t_buf[2] + t_buf[3] + t_buf[4] + t_buf[5];
-                        t_buf[7] = 0x0a;
-                        nRF24L01P_TX_Mode();
-                        nRF24L01P_TxPacket(t_buf);
-                        t_buf[0] = 0;
-                        nRF24L01P_RX_Mode();
+                    pair_device[i][5] = 0;
+                    pair_device[i][4] = 5;
+                    if( work_num <  ( sizeof(pair_device)/sizeof(pair_device[0]) ) ) {
+                        work_num++;
                     } else {
-                        work_num = 0xff;
+                        work_num = 0;
                     }
-                    
-                    break;
                 }
+                cmd_flag = 1;
+                //break;
             }
         }
-     
-//        uint8 buf[32] = {0};
-//        if(!nRF24L01P_RxPacket(buf))
-//		{
-//            static uint8 dr = 0;
-//            dr = dr==0 ? 1:0;
-//            P0_5 = dr;
-//			switch(buf[0])
-//			{
-//				case 0x55:
-//
-//					break;
-//				case 0xAA:
-//
-//					break;
-//				default:
-//					break;
-//			}
-//			buf[0] = 0;	
-//		}
-//        
-//        static uint16 count = 0; 
-//        static uint8 ld = 0; 
-//        if(count < 10) {
-//            count++;
-//            P0_4 = 1;
-//            
-//            I2CIO = 0x03;
-//            
-//        } else {
-//            ld++;
-//            count = 0;
-//            P0_4 = 0;
-//            
-//            I2CIO = 0x00;
-//            
-//            uint16 nGUA_ConnHandle;
-//            //获得连接句柄
-//            GAPRole_GetParameter(GAPROLE_CONNHANDLE, &nGUA_ConnHandle);
-//            uint8 send[2] = {0x55,0x51};
-//            GUA_SimpleGATTprofile_Char4_Notify(nGUA_ConnHandle,send,2);
-//            
-////            uint8 buf[32] = {0};
-////            buf[0] = 0x3a;
-////            buf[1] = 0x01;
-////            buf[2] = 0x00;
-////            buf[3] = 0x01;
-////            buf[4] = ld;
-////            buf[5] = 0x00;
-////            buf[6] = buf[1] + buf[2] + buf[3] + buf[4] + buf[5];
-////            buf[7] = 0x0a;
-////            nRF24L01P_TX_Mode();
-////            nRF24L01P_TxPacket(buf);
-////			buf[0] = 0;
-////			nRF24L01P_RX_Mode();
-//        }
         
+        if(cmd_flag == 0) {
+            work_num = 0;
+        }
+        
+//        for(int i = 0; i < ( sizeof(pair_device)/sizeof(pair_device[0]) ); i++ ) {
+//            if(pair_device[i][4] == 5) {
+//                pair_device[i][4] = 4;
+//
+//                uint8 t_buf[32] = {0};
+//                t_buf[0] = 0x3a;
+//                t_buf[1] = pair_device[i][1];
+//                t_buf[2] = pair_device[i][2];
+//                t_buf[3] = 0x01;
+//                t_buf[4] = pair_device[i][3];
+//                t_buf[5] = kill_flag;
+//                t_buf[6] = t_buf[1] + t_buf[2] + t_buf[3] + t_buf[4] + t_buf[5];
+//                t_buf[7] = 0x0a;
+//                nRF24L01P_TX_Mode();
+//                nRF24L01P_TxPacket(t_buf);
+//                t_buf[0] = 0;
+//                nRF24L01P_RX_Mode();
+//            } else if(pair_device[i][4] == 4) {
+//                if(pair_device[i][5] < 3) {
+//                    pair_device[i][5]++;
+//                } else {
+//                    pair_device[i][5] = 0;
+//                    pair_device[i][4] = 5;
+//                    if(pair_device[i][6] < 3) {
+//                        pair_device[i][6]++;
+//                    } else {
+//                        pair_device[i][6] = 0;
+//                        pair_device[i][4] = 0;
+//                    }
+//                }
+//                break;
+//            }
+//        }
+     
 //        uint8 tempbuf[10]={0};  
 //        UTCTimeStruct *Ti;  
 //        osalTimeUpdate();    
